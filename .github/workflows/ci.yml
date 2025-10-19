@@ -23,7 +23,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run unit tests (no GUI integration)
         run: |
-          pytest -q
+          pytest -q tests/unit/
 
   test-windows:
     runs-on: windows-latest
@@ -41,6 +41,6 @@ jobs:
           pip install -r requirements.txt
       - name: Run unit tests (no GUI integration)
         run: |
-          pytest -q
+          pytest -q tests/unit/
 
 
