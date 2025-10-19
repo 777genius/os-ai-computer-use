@@ -3,7 +3,12 @@
 [![CI](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml/badge.svg)](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml)
 ![visitor badge](https://visitor-badge.laobi.icu/badge?page_id=iliyaZelenko.os-ai-computer-use)
 
-<img width="605" height="669" alt="image" src="https://github.com/user-attachments/assets/fd6f43c8-81af-4ccc-80eb-25712b24c5ce" />
+<img width="605" height="669" alt="image" src="https://github.com/user-attachments/assets/481951ca-d255-4ce2-98fa-b5759987f7b4" />
+
+
+https://github.com/user-attachments/assets/5b8e5ff1-5cbd-4515-b593-cd7de0b222cd
+
+
 
 
 ## Table of Contents
