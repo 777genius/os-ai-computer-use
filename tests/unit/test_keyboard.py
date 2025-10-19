@@ -89,7 +89,9 @@ def test_type_multiline_uses_clipboard_paste(monkeypatch):
     text = "line1\nline2()"
     res = main.handle_computer_action("type", {"text": text})
 
-    assert pasted["hotkey"] == [("command", "v")]
+    # Check platform-appropriate paste key: command on macOS, ctrl on Windows/Linux
+    expected_modifier = "command" if sys.platform == "darwin" else "ctrl"
+    assert pasted["hotkey"] == [(expected_modifier, "v")]
     assert "write_used" not in pasted
     assert any("pasted" in c.get("text", "") for c in res)
 
