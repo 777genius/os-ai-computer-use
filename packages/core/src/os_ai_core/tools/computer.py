@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, Any, List, Tuple
 
 import os
+import sys
 import time
 import base64
 import logging
@@ -521,7 +522,9 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                 try:
                     pyperclip.copy(text)
                     time.sleep(PASTE_COPY_DELAY_SECONDS)
-                    pyautogui.hotkey("command", "v")
+                    # Use platform-appropriate modifier: command on macOS, ctrl on Windows/Linux
+                    modifier = "command" if sys.platform == "darwin" else "ctrl"
+                    pyautogui.hotkey(modifier, "v")
                     time.sleep(PASTE_POST_DELAY_SECONDS)
                 finally:
                     if RESTORE_CLIPBOARD_AFTER_PASTE and prev_clip is not None:
@@ -568,8 +571,10 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                 else:
                     pyautogui.write(fallback_text, interval=0.02)
                     return [{"type": "text", "text": f"typed: {len(fallback_text)} chars"}]
-            combo_raw = combo if isinstance(combo, str) else str(combo)
-            return [{"type": "text", "text": f"error: missing key combo (raw='{combo_raw}')"}]
+            # Only return error if norm_keys is still empty after fallback parsing
+            if not norm_keys:
+                combo_raw = combo if isinstance(combo, str) else str(combo)
+                return [{"type": "text", "text": f"error: missing key combo (raw='{combo_raw}')"}]
 
         pressed_label = "+".join(norm_keys)
         if action == "hold_key":

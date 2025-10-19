@@ -29,14 +29,28 @@ def press_enter_mac():
 
 
 def handle_computer_action(action, params):  # type: ignore
-    # Ensure computer module uses (possibly monkeypatched) press_enter_mac from this module
-    _computer.press_enter_mac = press_enter_mac  # type: ignore
-    res = _computer.handle_computer_action(action, params)
+    # Save original values to restore after call (prevents test pollution)
+    _orig_press_enter = getattr(_computer, "press_enter_mac", None)
+    _orig_pyautogui = _computer.pyautogui  # type: ignore
+
     try:
-        globals()["LAST_SCREENSHOT_PATH"] = getattr(_computer, "LAST_SCREENSHOT_PATH", "")
-    except Exception:
-        pass
-    return res
+        # Ensure computer module uses (possibly monkeypatched) versions from this module
+        # Use globals() to ensure we get the current (possibly monkeypatched) version
+        _computer.press_enter_mac = globals()["press_enter_mac"]  # type: ignore
+        _computer.pyautogui = globals()["pyautogui"]  # type: ignore
+        res = _computer.handle_computer_action(action, params)
+        try:
+            globals()["LAST_SCREENSHOT_PATH"] = getattr(_computer, "LAST_SCREENSHOT_PATH", "")
+        except Exception:
+            pass
+        return res
+    finally:
+        # Restore original values to prevent test pollution across tests
+        if _orig_press_enter is not None:
+            _computer.press_enter_mac = _orig_press_enter  # type: ignore
+        elif hasattr(_computer, "press_enter_mac"):
+            delattr(_computer, "press_enter_mac")
+        _computer.pyautogui = _orig_pyautogui  # type: ignore
 
 
 if __name__ == "__main__":
