@@ -315,6 +315,26 @@ def parse_key_combo(combo: str) -> List[str]:
     return keys
 
 
+def _keys_from_fallback_text(text: str) -> List[str]:
+    """Best-effort parse when 'key' is missing but 'text' looks like key names.
+
+    Splits by whitespace, maps aliases (Return->enter, Escape->esc, etc.).
+    Returns normalized key list or empty if text does not look like keys.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return []
+    tokens = [t for t in text.replace("+", " ").split() if t]
+    if not tokens:
+        return []
+    mapped: List[str] = []
+    for t in tokens:
+        mapped.extend(parse_key_combo(t))
+    # Heuristic: consider it valid if all tokens mapped to known keys (no unchanged mixed-case words)
+    if not mapped:
+        return []
+    return mapped
+
+
 def _with_modifiers(mods: List[str], action_fn):
     mods = [m for m in mods if m]
     try:
@@ -478,43 +498,47 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
 
     if action == "type":
         text = params.get("text", "")
+        # Heuristics: prefer clipboard paste for non-ASCII or multiline/code to avoid editor auto-pair insertion
         try:
-            non_ascii = any(ord(c) > 127 for c in text)
+            has_non_ascii = any(ord(c) > 127 for c in text)
         except Exception:
-            non_ascii = False
-        if non_ascii:
+            has_non_ascii = False
+        looks_multiline = "\n" in str(text)
+        looks_codey = any(tok in str(text) for tok in ("()", "{}", "[]", "'", '"', "=>", ": "))
+        prefer_paste = has_non_ascii or looks_multiline or looks_codey
+        if prefer_paste:
             try:
                 import pyperclip  # type: ignore
                 from os_ai_core.config import (
-                    TYPING_USE_CLIPBOARD_FOR_NON_ASCII,
                     RESTORE_CLIPBOARD_AFTER_PASTE,
                     PASTE_COPY_DELAY_SECONDS,
                     PASTE_POST_DELAY_SECONDS,
                 )
-                if TYPING_USE_CLIPBOARD_FOR_NON_ASCII:
-                    try:
-                        prev_clip = pyperclip.paste()
-                    except Exception:
-                        prev_clip = None
-                    try:
-                        pyperclip.copy(text)
-                        time.sleep(PASTE_COPY_DELAY_SECONDS)
-                        pyautogui.hotkey("command", "v")
-                        time.sleep(PASTE_POST_DELAY_SECONDS)
-                    finally:
-                        if RESTORE_CLIPBOARD_AFTER_PASTE and prev_clip is not None:
-                            try:
-                                pyperclip.copy(prev_clip)
-                            except Exception:
-                                pass
-                    return [{"type": "text", "text": f"pasted {len(text)} chars via clipboard"}]
+                try:
+                    prev_clip = pyperclip.paste()
+                except Exception:
+                    prev_clip = None
+                try:
+                    pyperclip.copy(text)
+                    time.sleep(PASTE_COPY_DELAY_SECONDS)
+                    pyautogui.hotkey("command", "v")
+                    time.sleep(PASTE_POST_DELAY_SECONDS)
+                finally:
+                    if RESTORE_CLIPBOARD_AFTER_PASTE and prev_clip is not None:
+                        try:
+                            pyperclip.copy(prev_clip)
+                        except Exception:
+                            pass
+                return [{"type": "text", "text": f"pasted {len(text)} chars via clipboard"}]
             except Exception:
+                # Fallback to typing if clipboard unavailable
                 pass
         pyautogui.write(text, interval=0.02)
         return [{"type": "text", "text": "done: type"}]
 
     if action in ("key", "hold_key"):
         combo = params.get("key") or params.get("keys") or params.get("combo") or ""
+        derived_from_text = False
         try:
             if isinstance(combo, str):
                 norm_keys = [k for k in parse_key_combo(combo) if isinstance(k, str) and k.strip()]
@@ -536,8 +560,14 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
         if not norm_keys:
             fallback_text = params.get("text") or params.get("character")
             if isinstance(fallback_text, str) and fallback_text:
-                pyautogui.write(fallback_text, interval=0.02)
-                return [{"type": "text", "text": f"typed: {len(fallback_text)} chars"}]
+                # Try to parse textual key names like "Return" into real key presses
+                maybe_keys = _keys_from_fallback_text(fallback_text)
+                if maybe_keys:
+                    norm_keys = maybe_keys
+                    derived_from_text = True
+                else:
+                    pyautogui.write(fallback_text, interval=0.02)
+                    return [{"type": "text", "text": f"typed: {len(fallback_text)} chars"}]
             combo_raw = combo if isinstance(combo, str) else str(combo)
             return [{"type": "text", "text": f"error: missing key combo (raw='{combo_raw}')"}]
 
@@ -562,7 +592,23 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                 if len(norm_keys) == 1:
                     pyautogui.press(norm_keys[0])
                 else:
-                    pyautogui.hotkey(*norm_keys)
+                    # If keys were derived from textual tokens (e.g., "Return Return") and are identical
+                    # non-modifier keys, press them sequentially instead of treating as a combo
+                    simple_non_mods = {"enter", "tab", "esc", "space", "backspace", "delete"}
+                    if derived_from_text and len(set(norm_keys)) == 1 and norm_keys[0] in simple_non_mods:
+                        key = norm_keys[0]
+                        count = len(norm_keys)
+                        for _ in range(count):
+                            if key in ("enter",):
+                                try:
+                                    press_enter_mac()
+                                except Exception:
+                                    pyautogui.press("enter")
+                            else:
+                                pyautogui.press(key)
+                        pressed_label = f"{key} x{count}"
+                    else:
+                        pyautogui.hotkey(*norm_keys)
         return [{"type": "text", "text": f"pressed: {pressed_label}"}]
 
     if action == "scroll":

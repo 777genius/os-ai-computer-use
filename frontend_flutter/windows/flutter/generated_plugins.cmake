@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   connectivity_plus
+  desktop_drop
   flutter_acrylic
   hotkey_manager_windows
   screen_retriever

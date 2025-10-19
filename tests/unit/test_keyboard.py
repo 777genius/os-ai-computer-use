@@ -51,3 +51,46 @@ def test_press_keycode_safe_on_exception(monkeypatch):
     keyboard._press_keycode_safe(36)
 
 
+def test_type_multiline_uses_clipboard_paste(monkeypatch):
+    # Load main shim to ensure we route through computer tool
+    import importlib.util, sys
+    from pathlib import Path
+    proj_root = Path(__file__).resolve().parents[2]
+    main_path = proj_root / "main.py"
+    if str(proj_root) not in sys.path:
+        sys.path.insert(0, str(proj_root))
+    spec = importlib.util.spec_from_file_location("agent_core_main", str(main_path))
+    assert spec and spec.loader
+    main = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(main)  # type: ignore
+
+    # Monkeypatch clipboard and pyautogui
+    pasted = {"hotkey": []}
+
+    class _Clip:
+        _buf = ""
+        @staticmethod
+        def paste():
+            return _Clip._buf
+        @staticmethod
+        def copy(v):
+            _Clip._buf = v
+
+    def hotkey(*keys):
+        pasted["hotkey"].append(tuple(keys))
+
+    def write(text, interval=0.0):
+        # Should not be used for multiline/code path
+        pasted["write_used"] = True
+
+    monkeypatch.setattr(main, "pyautogui", type("P", (), {"hotkey": hotkey, "write": write}))
+    monkeypatch.setitem(sys.modules, "pyperclip", _Clip)
+
+    text = "line1\nline2()"
+    res = main.handle_computer_action("type", {"text": text})
+
+    assert pasted["hotkey"] == [("command", "v")]
+    assert "write_used" not in pasted
+    assert any("pasted" in c.get("text", "") for c in res)
+
+

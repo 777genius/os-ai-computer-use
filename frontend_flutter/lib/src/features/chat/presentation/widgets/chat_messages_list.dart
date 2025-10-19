@@ -1,12 +1,51 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+// removed duplicate provider import
+import 'package:frontend_flutter/src/features/chat/presentation/widgets/attachment_bubble.dart';
+import 'package:frontend_flutter/src/features/chat/presentation/widgets/lightbox_viewer.dart';
+import 'package:frontend_flutter/src/features/chat/presentation/widgets/album_bubble.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
 
-class ChatMessagesList extends StatelessWidget {
+class ChatMessagesList extends StatefulWidget {
   const ChatMessagesList({super.key});
+
+  @override
+  State<ChatMessagesList> createState() => _ChatMessagesListState();
+}
+
+class _ChatMessagesListState extends State<ChatMessagesList> {
+  final ScrollController _ctrl = ScrollController();
+  bool _atBottom = true;
+  int _lastLen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.removeListener(_onScroll);
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_ctrl.hasClients) return;
+    final pos = _ctrl.position;
+    final bool atBottomNow = pos.pixels >= (pos.maxScrollExtent - 24);
+    _atBottom = atBottomNow;
+  }
+
+  void _scrollToBottom() {
+    if (!_ctrl.hasClients) return;
+    final target = _ctrl.position.maxScrollExtent;
+    _ctrl.animateTo(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,11 +53,33 @@ class ChatMessagesList extends StatelessWidget {
       builder: (_) {
         final store = context.read<ChatStore?>();
         final len = store?.messages.length ?? 0;
+
+        // автопрокрутка только если пользователь в самом низу и пришли новые сообщения
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (_atBottom && _lastLen != len) {
+            _scrollToBottom();
+          }
+          _lastLen = len;
+        });
+
         return ListView.builder(
+          controller: _ctrl,
           padding: const EdgeInsets.all(12),
           itemCount: len,
           itemBuilder: (_, i) {
             final m = store!.messages[i];
+            if (m.kind == 'attachment_album') {
+              final list = (m.meta?['items'] as List?)?.cast<Map>() ?? const [];
+              final items = list.map((e) => e.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''))).toList();
+              return AlbumBubble(items: items, isUser: m.role == 'user');
+            }
+            if (m.kind == 'attachment') {
+              final name = (m.meta?['name'] as String?) ?? (m.text ?? 'file');
+              final fileId = (m.meta?['fileId'] as String?) ?? '';
+              final preview = (m.meta?['previewBase64'] as String?);
+              return AttachmentBubble(name: name, fileId: fileId, isUser: m.role == 'user', previewBase64: preview);
+            }
             if (m.kind == 'screenshot' && m.imageBase64 != null && m.imageBase64!.isNotEmpty) {
               return Align(
                 alignment: Alignment.centerLeft,
@@ -38,7 +99,14 @@ class ChatMessagesList extends StatelessWidget {
                           Text('Screenshot (${m.ts.toIso8601String().substring(11, 19)})',
                               style: Theme.of(context).textTheme.bodySmall),
                           const SizedBox(height: 6),
-                          _ZoomableBase64Image(base64Data: m.imageBase64!),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                builder: (_) => LightboxViewer(base64Images: [m.imageBase64!]),
+                              ));
+                            },
+                            child: _ZoomableBase64Image(base64Data: m.imageBase64!),
+                          ),
                         ],
                       ),
                     )
@@ -98,9 +166,9 @@ class ChatMessagesList extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
                         decoration: BoxDecoration(
-                          color: border.withOpacity(0.15),
+                          color: border.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: border.withOpacity(0.4)),
+                          border: Border.all(color: border.withValues(alpha: 0.4)),
                         ),
                         child: Text(status.isEmpty ? 'start' : status, style: Theme.of(context).textTheme.labelSmall),
                       ),

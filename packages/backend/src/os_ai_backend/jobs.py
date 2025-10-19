@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from dataclasses import dataclass
 from typing import Dict
 
@@ -16,19 +17,23 @@ class Job:
 class JobManager:
     def __init__(self) -> None:
         self._jobs: Dict[str, Job] = {}
+        self._lock = threading.Lock()
 
     def register(self, job: Job) -> None:
-        self._jobs[job.id] = job
+        with self._lock:
+            self._jobs[job.id] = job
 
     def cancel(self, job_id: str) -> bool:
-        j = self._jobs.get(job_id)
-        if not j:
-            return False
-        j.cancel.cancel()
-        return True
+        with self._lock:
+            j = self._jobs.get(job_id)
+            if not j:
+                return False
+            j.cancel.cancel()
+            return True
 
     def remove(self, job_id: str) -> None:
-        self._jobs.pop(job_id, None)
+        with self._lock:
+            self._jobs.pop(job_id, None)
 
 
 # singleton

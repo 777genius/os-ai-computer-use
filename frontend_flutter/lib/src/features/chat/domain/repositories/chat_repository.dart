@@ -12,7 +12,19 @@ abstract class ChatRepository {
   Future<String> runTask({required String task});
   Future<void> cancelJob(String jobId);
   Future<void> cancelCurrentJob();
-  Future<String> uploadFile(String name, List<int> bytes, {String? mime});
+  void setActiveChat(String chatId);
+  Future<String> uploadFile(
+    String name,
+    List<int> bytes, {
+    String? mime,
+    void Function(int sent, int total)? onProgress,
+    void Function(void Function())? onCreateCancel,
+    String? previewBase64,
+    String? batchId,
+    int? batchSize,
+    int? batchIndex,
+  });
+  Future<List<int>> downloadFile(String id);
 }
 
 

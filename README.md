@@ -17,6 +17,10 @@ https://github.com/user-attachments/assets/5b8e5ff1-5cbd-4515-b593-cd7de0b222cd
   - [Installation \& Setup](#installation--setup)
   - [Quick start](#quick-start)
     - [CLI Examples](#cli-examples)
+  - [Development Mode](#development-mode)
+    - [1. Install dependencies](#1-install-dependencies)
+    - [2. Start the backend](#2-start-the-backend)
+    - [3. Start the frontend (in a new terminal)](#3-start-the-frontend-in-a-new-terminal)
   - [Features](#features)
   - [Supported Platforms](#supported-platforms)
   - [Configuration (config/settings.py)](#configuration-configsettingspy)
@@ -44,6 +48,10 @@ Highlights:
 - Reliable keyboard input (robust Enter on macOS), hotkeys and hold sequences
 - Screenshots (Quartz on macOS or PyAutoGUI fallback), on‑disk saving and base64 tool_result
 - Detailed logs and running cost estimation per iteration and total
+- Multiple chats
+- Images upload
+- Voice input
+- AI API Agnostic
 
 See provider architecture in `docs/architecture-universal-llm.md`, OS ports/drivers in `docs/os-architecture.md`, and packaging notes in `docs/ci-packaging.md`.
 
@@ -127,6 +135,77 @@ RUN_CURSOR_TESTS=1 make itest    # GUI integration tests (macOS; requires permis
 make itest-local-keyboard        # run keyboard harness
 make itest-local-click           # run click/drag harness
 ```
+
+---
+
+## Development Mode
+
+For development with backend + frontend (Flutter UI):
+
+### 1. Install dependencies
+
+```bash
+# (optional) create and activate venv
+python -m venv .venv && source .venv/bin/activate
+
+# install Python dependencies
+make install
+
+# install local packages in editable mode for mono-repo dev
+make dev-install
+```
+
+### 2. Start the backend
+
+```bash
+# Set your API key
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# (optional) enable debug mode
+export OS_AI_BACKEND_DEBUG=1
+
+# Start backend on 127.0.0.1:8765
+os-ai-backend
+
+# Or run directly via Python module
+# python -m os_ai_backend.app
+```
+
+Backend environment variables (optional):
+- `OS_AI_BACKEND_HOST` - host address (default: `127.0.0.1`)
+- `OS_AI_BACKEND_PORT` - port number (default: `8765`)
+- `OS_AI_BACKEND_DEBUG` - enable debug logging (default: `0`)
+- `OS_AI_BACKEND_TOKEN` - authentication token (optional)
+- `OS_AI_BACKEND_CORS_ORIGINS` - allowed CORS origins (default: `http://localhost,http://127.0.0.1`)
+
+Backend endpoints:
+- `GET /healthz` - health check
+- `WS /ws` - WebSocket for JSON-RPC commands
+- `POST /v1/files` - file upload
+- `GET /v1/files/{file_id}` - file download
+- `GET /metrics` - metrics snapshot
+
+### 3. Start the frontend (in a new terminal)
+
+```bash
+cd frontend_flutter
+
+# Install Flutter dependencies
+flutter pub get
+
+# Run on macOS
+flutter run -d macos
+
+# Or run on other platforms
+# flutter run -d chrome   # web
+# flutter run -d windows  # Windows
+```
+
+Frontend config (in code):
+- Default backend WebSocket: `ws://127.0.0.1:8765/ws`
+- Default REST base: `http://127.0.0.1:8765`
+
+See `frontend_flutter/README.md` for more details on the Flutter app architecture and features.
 
 ---
 
@@ -244,6 +323,8 @@ Recommended setup: Flutter as pure UI, local Python service:
 - Transport: WebSocket + JSON‑RPC for chat/commands, REST for files
 - Streams: screenshots (JPEG/PNG), logs, events
 - Example notes: `docs/flutter.md`
+
+**To run backend + frontend in development mode, see the [Development Mode](#development-mode) section above.**
 
 Note: project code and docs use English.
 

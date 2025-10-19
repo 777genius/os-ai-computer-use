@@ -1,0 +1,2 @@
+[os_ai_os.drivers]
+windows = os_ai_os_windows.drivers:make_drivers

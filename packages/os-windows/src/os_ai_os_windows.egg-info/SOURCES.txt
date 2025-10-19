@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/os_ai_os_windows/__init__.py
+src/os_ai_os_windows/drivers.py
+src/os_ai_os_windows.egg-info/PKG-INFO
+src/os_ai_os_windows.egg-info/SOURCES.txt
+src/os_ai_os_windows.egg-info/dependency_links.txt
+src/os_ai_os_windows.egg-info/entry_points.txt
+src/os_ai_os_windows.egg-info/requires.txt
+src/os_ai_os_windows.egg-info/top_level.txt

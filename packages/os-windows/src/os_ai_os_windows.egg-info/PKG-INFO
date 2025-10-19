@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: os_ai_os_windows
+Version: 0.1.0
+Summary: Windows drivers for os_ai_os ports
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pyautogui>=0.9.54
+Requires-Dist: Pillow>=10
+Requires-Dist: os_ai_os>=0.1.0
+
+Windows drivers package
+=======================
+
+Implements Windows-specific drivers for os_ai_os ports using PyAutoGUI for input/screen.
+Overlay and sound are no-ops in this minimal implementation.
+Entry point: os_ai_os.drivers:windows -> os_ai_os_windows.drivers:make_drivers
+
+

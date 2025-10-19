@@ -75,6 +75,7 @@ class WebSocketRPCHandler:
                     provider = params.get("provider")
                     max_iterations = int(params.get("maxIterations", 30))
                     initial_messages = params.get("context") or []
+                    attachments = params.get("attachments") or []
 
                     # Build session and run orchestration in background
                     session_id, client, tools = self._create_session(provider)
@@ -95,6 +96,7 @@ class WebSocketRPCHandler:
                         max_iterations=max_iterations,
                         cancel=cancel_token,
                         initial_messages=initial_messages,
+                        attachments=attachments,
                     ))
                     # job started asynchronously
                 elif method == "agent.cancel":
@@ -102,11 +104,14 @@ class WebSocketRPCHandler:
                     job_id = params.get("jobId")
                     if job_id:
                         try:
-                            jobs.cancel(str(job_id))
+                            cancelled = jobs.cancel(str(job_id))
+                            self._logger.info("agent.cancel job=%s found=%s", job_id, cancelled)
                             ok = True
                         except Exception:
+                            self._logger.warning("agent.cancel job=%s exception", job_id)
                             ok = True
                     else:
+                        self._logger.warning("agent.cancel missing jobId")
                         ok = False
                     await self._send_result(websocket, req_id, {"ok": ok, "jobId": job_id})
                 else:
@@ -124,6 +129,7 @@ class WebSocketRPCHandler:
         max_iterations: int,
         cancel: CancelToken,
         initial_messages: list | None = None,
+        attachments: list | None = None,
     ) -> None:
         screen_w, screen_h = pyautogui.size()
         tool_descs = [
@@ -164,8 +170,8 @@ class WebSocketRPCHandler:
                     asyncio.run_coroutine_threadsafe(self._send_event(websocket, "event.progress", {**payload, "jobId": job_id}), loop)
                 elif kind == "usage":
                     asyncio.run_coroutine_threadsafe(self._send_event(websocket, "event.usage", {**payload, "jobId": job_id}), loop)
-            except Exception:
-                pass
+            except Exception as e:
+                self._logger.debug("Error in on_event %s: %s", kind, e)
 
         def _blocking_run() -> Dict[str, Any]:
             # Convert initial context from wire into Message[] if provided
@@ -181,6 +187,28 @@ class WebSocketRPCHandler:
                                 base_msgs.append(Message(role=role, content=[TextPart(text=text)]))
             except Exception:
                 pass
+            # Inject attachments as user messages (images) before the task
+            try:
+                if attachments:
+                    from os_ai_llm.types import ImagePart
+                    for a in attachments:
+                        if isinstance(a, dict):
+                            fid = a.get("fileId")
+                            name = a.get("name")
+                            # Fetch file bytes via local filestore (FastAPI app has store), then base64
+                            # Import lazily to avoid circulars
+                            from .files import store as _store
+                            try:
+                                meta = _store.get(str(fid))
+                                data = meta.path.read_bytes()
+                                import base64
+                                b64 = base64.b64encode(data).decode("ascii")
+                                base_msgs.append(Message(role="user", content=[ImagePart(media_type=a.get("mime") or "application/octet-stream", data_base64=b64)]))
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
             messages = orch.run(task_text, tool_descs, system_prompt, max_iterations=max_iterations, cancel_token=cancel, on_event=on_event, initial_messages=base_msgs)
             final_texts: list[str] = []
             for m in messages:
@@ -208,10 +236,12 @@ class WebSocketRPCHandler:
             logging.getLogger(LOGGER_NAME).exception("Job failed: %s", exc)
             await self._send_event(websocket, "event.final", {"jobId": job_id, "status": "fail", "error": str(exc)})
             return
+        finally:
+            # Ensure job is always removed from manager
+            jobs.remove(job_id)
 
         await self._send_event(websocket, "event.final", {"jobId": job_id, **result})
         self._logger.info("agent.run completed job=%s status=%s", job_id, result.get("status"))
-        jobs.remove(job_id)
 
     def _create_session(self, provider: Optional[str]) -> tuple[str, LLMClient, ToolRegistry]:
         inj = _create_container(provider)
@@ -232,8 +262,12 @@ class WebSocketRPCHandler:
         await websocket.send_text(self._dumps(payload))
 
     async def _send_event(self, websocket: WebSocket, method: str, params: Dict[str, Any]) -> None:
-        payload = {"jsonrpc": "2.0", "method": method, "params": params}
-        await websocket.send_text(self._dumps(payload))
+        try:
+            payload = {"jsonrpc": "2.0", "method": method, "params": params}
+            await websocket.send_text(self._dumps(payload))
+        except Exception as e:
+            # WebSocket might be closed, log but don't crash
+            self._logger.debug("Failed to send event %s: %s", method, e)
 
     def _dumps(self, obj: Any) -> str:
         try:

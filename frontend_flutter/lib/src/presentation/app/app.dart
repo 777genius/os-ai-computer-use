@@ -9,12 +9,15 @@ import 'package:frontend_flutter/src/features/chat/data/datasources/backend_rest
 import 'package:frontend_flutter/src/app/config/app_config.dart';
 import 'package:frontend_flutter/src/presentation/stores/theme_store.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
+import 'package:frontend_flutter/src/features/chat/data/cache/chat_cache.dart';
+import 'package:frontend_flutter/src/features/chat/data/cache/hive_chat_cache.dart';
 
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Hive инициализируется в main.dart
     final themeStore = context.watch<ThemeStore>();
     final light = ThemeData(
       useMaterial3: true,
@@ -89,17 +92,17 @@ class AppRoot extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'OS AI Frontend',
+      title: 'OS AI',
       theme: light,
       darkTheme: dark,
       themeMode: themeStore.mode,
-      home: ColoredBox(
-        color: Colors.transparent,
-        child: MultiProvider(
+      builder: (context, child) {
+        return MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => AppConfig()),
             Provider(create: (_) => BackendWsClient()),
             Provider(create: (_) => BackendRestClient()),
+            Provider<ChatCache>(create: (_) => HiveChatCache()),
             ProxyProvider3<AppConfig, BackendWsClient, BackendRestClient, ChatRepository>(
               update: (_, cfg, ws, rest, prev) {
                 // push config into clients
@@ -108,12 +111,16 @@ class AppRoot extends StatelessWidget {
                 return prev ?? ChatRepositoryImpl(ws, rest, wsUriProvider: cfg.wsUri);
               },
             ),
-            ProxyProvider<ChatRepository, ChatStore>(
-              update: (_, repo, prev) => prev ?? ChatStore(repo),
+            ProxyProvider2<ChatRepository, ChatCache, ChatStore>(
+              update: (_, repo, cache, prev) => prev ?? ChatStore(repo, cache: cache),
             ),
           ],
-          child: const ChatScreen(),
-        ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: ColoredBox(
+        color: Colors.transparent,
+        child: const ChatScreen(),
       ),
       debugShowCheckedModeBanner: false,
     );

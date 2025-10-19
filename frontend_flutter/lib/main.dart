@@ -7,10 +7,12 @@ import 'package:frontend_flutter/src/presentation/stores/theme_store.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as acrylic;
+import 'package:hive_flutter/hive_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await configureDependencies();
+  await Hive.initFlutter();
 
   // Initialize window manager for macOS transparency and control
   await windowManager.ensureInitialized();

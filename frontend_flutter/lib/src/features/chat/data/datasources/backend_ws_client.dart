@@ -37,7 +37,6 @@ class BackendWsClient {
         _statusCtrl.add(ConnectionStatus.connected);
       }
     });
-    _statusCtrl.add(ConnectionStatus.connected);
     // ignore: avoid_print
     print('[WS] connected');
     _sub = ch.stream.listen((_) {}, onDone: () {
@@ -133,6 +132,7 @@ class BackendWsClient {
     _ch = null;
     _stream = null;
     _statusCtrl.add(ConnectionStatus.disconnected);
+    await _statusCtrl.close();
   }
 
   Stream<ConnectionStatus> connectionStatus() => _statusCtrl.stream;
