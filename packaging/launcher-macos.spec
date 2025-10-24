@@ -93,7 +93,7 @@ exe = EXE(
     upx=False,
     console=False,  # GUI application
     disable_windowed_traceback=False,
-    target_arch='universal2',  # Universal binary for Intel + Apple Silicon
+    target_arch=None,  # Build for current architecture (GitHub Actions runners)
     codesign_identity=None,  # Set this for code signing
     entitlements_file=None,
 )

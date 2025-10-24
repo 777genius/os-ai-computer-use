@@ -44,7 +44,8 @@ jobs:
             libcairo2-dev \
             libpango1.0-dev \
             libgdk-pixbuf2.0-dev \
-            libappindicator3-dev
+            libappindicator3-dev \
+            libkeybinder-3.0-dev
 
       - name: Install Python dependencies
         run: |
