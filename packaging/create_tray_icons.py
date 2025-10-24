@@ -66,7 +66,7 @@ def main():
         append_images=ico_images[1:]
     )
 
-    print("✓ Icons created successfully!")
+    print("Icons created successfully!")
     print(f"  - {output_dir}/tray_icon.png")
     print(f"  - {output_dir}/tray_icon.ico")
 
