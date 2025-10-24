@@ -1,0 +1,64 @@
+name: Build Web
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+    outputs:
+      artifact-name:
+        description: 'Name of the artifact'
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: frontend_flutter
+        run: flutter pub get
+
+      - name: Build Flutter Web app
+        working-directory: frontend_flutter
+        run: flutter build web --release --base-href=/os-ai-computer-use/
+
+      - name: Create VERSION file in build
+        working-directory: frontend_flutter/build/web
+        run: echo "${{ inputs.version }}" > VERSION
+
+      - name: Create ZIP archive
+        working-directory: frontend_flutter/build
+        run: |
+          zip -r ../../OS_AI_${{ inputs.version }}_Web.zip web/
+          ls -lh ../../OS_AI_*.zip
+
+      - name: Upload artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-ai-web-${{ inputs.version }}
+          path: OS_AI_*.zip
+          retention-days: 7
+
+      - name: Deploy to GitHub Pages (on tag release)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: frontend_flutter/build/web
+          cname: '' # Add custom domain if needed

@@ -1,0 +1,75 @@
+name: Build Windows
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+    outputs:
+      artifact-name:
+        description: 'Name of the artifact'
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pywin32
+
+      - name: Install Flutter dependencies
+        working-directory: frontend_flutter
+        run: flutter pub get
+
+      - name: Generate tray icons
+        run: python packaging/create_tray_icons.py
+
+      - name: Build Flutter Windows app
+        working-directory: frontend_flutter
+        run: flutter build windows --release
+
+      - name: Create VERSION file
+        run: echo "${{ inputs.version }}" > VERSION
+
+      - name: Package with PyInstaller
+        run: |
+          python -m PyInstaller packaging/launcher-windows.spec --clean
+          dir dist\
+
+      - name: Create ZIP archive
+        working-directory: dist
+        run: |
+          Compress-Archive -Path "OS_AI" -DestinationPath "OS_AI_${{ inputs.version }}_Windows.zip"
+          dir *.zip
+
+      - name: Upload artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-ai-windows-${{ inputs.version }}
+          path: dist/OS_AI_*.zip
+          retention-days: 7

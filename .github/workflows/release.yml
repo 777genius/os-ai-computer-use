@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  extract-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+  # Build for all platforms in parallel
+  build-macos:
+    needs: extract-version
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      version: ${{ needs.extract-version.outputs.version }}
+
+  build-windows:
+    needs: extract-version
+    uses: ./.github/workflows/build-windows.yml
+    with:
+      version: ${{ needs.extract-version.outputs.version }}
+
+  build-linux:
+    needs: extract-version
+    uses: ./.github/workflows/build-linux.yml
+    with:
+      version: ${{ needs.extract-version.outputs.version }}
+
+  build-web:
+    needs: extract-version
+    uses: ./.github/workflows/build-web.yml
+    with:
+      version: ${{ needs.extract-version.outputs.version }}
+
+  # Create GitHub Release with all artifacts
+  create-release:
+    needs: [extract-version, build-macos, build-windows, build-linux, build-web]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded artifacts
+        run: |
+          ls -R artifacts/
+          find artifacts -type f
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "First release - no previous tag found"
+            CHANGELOG="## What's New\n\nInitial release of OS AI Desktop\n\n### Features\n- Desktop application with system tray integration\n- Python backend with FastAPI\n- Flutter frontend\n- Available for macOS, Windows, Linux, and Web"
+          else
+            echo "Generating changelog from $PREV_TAG to $GITHUB_REF_NAME"
+            CHANGELOG="## What's Changed\n\n"
+            CHANGELOG+=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Save changelog to file
+          echo -e "$CHANGELOG" > CHANGELOG.md
+          cat CHANGELOG.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: OS AI v${{ needs.extract-version.outputs.version }}
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/os-ai-macos-${{ needs.extract-version.outputs.version }}/*
+            artifacts/os-ai-windows-${{ needs.extract-version.outputs.version }}/*
+            artifacts/os-ai-linux-${{ needs.extract-version.outputs.version }}/*
+            artifacts/os-ai-web-${{ needs.extract-version.outputs.version }}/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "🎉 Release v${{ needs.extract-version.outputs.version }} created successfully!"
+          echo ""
+          echo "📦 Artifacts:"
+          find artifacts -type f -name "*.zip" -o -name "*.dmg" -o -name "*.tar.gz" -o -name "*.AppImage" | while read file; do
+            SIZE=$(du -h "$file" | cut -f1)
+            echo "  - $(basename $file) ($SIZE)"
+          done

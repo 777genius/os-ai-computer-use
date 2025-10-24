@@ -8,6 +8,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart' as acrylic;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:tray_manager/tray_manager.dart';
+import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +54,11 @@ void main() async {
     }
   });
 
+  // Initialize system tray (for desktop platforms only)
+  if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    await _initSystemTray();
+  }
+
   runApp(
     MultiProvider(
       providers: [
@@ -60,4 +67,68 @@ void main() async {
       child: const AppRoot(),
     ),
   );
+}
+
+Future<void> _initSystemTray() async {
+  await trayManager.setIcon(
+    Platform.isWindows
+        ? 'assets/icons/tray_icon.ico'
+        : 'assets/icons/tray_icon.png',
+  );
+
+  Menu menu = Menu(
+    items: [
+      MenuItem(
+        key: 'show_window',
+        label: 'Show Window',
+      ),
+      MenuItem.separator(),
+      MenuItem(
+        key: 'check_updates',
+        label: 'Check for Updates',
+      ),
+      MenuItem.separator(),
+      MenuItem(
+        key: 'quit',
+        label: 'Quit OS AI',
+      ),
+    ],
+  );
+
+  await trayManager.setContextMenu(menu);
+
+  // Set up tray click handler
+  trayManager.addListener(TrayListener());
+}
+
+class TrayListener with TrayListenerMixin {
+  @override
+  void onTrayIconMouseDown() {
+    // Single click on tray icon - show window
+    windowManager.show();
+    windowManager.focus();
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    // Right click - show context menu (handled automatically)
+    trayManager.popUpContextMenu();
+  }
+
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) async {
+    switch (menuItem.key) {
+      case 'show_window':
+        await windowManager.show();
+        await windowManager.focus();
+        break;
+      case 'check_updates':
+        // TODO: Implement update check
+        debugPrint('Check for updates clicked');
+        break;
+      case 'quit':
+        await windowManager.destroy();
+        break;
+    }
+  }
 }

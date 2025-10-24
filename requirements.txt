@@ -35,3 +35,5 @@ fastapi==0.112.2
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 orjson==3.10.7
+pystray==0.19.5
+Pillow>=11.3.0

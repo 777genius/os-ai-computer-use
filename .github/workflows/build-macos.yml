@@ -1,0 +1,93 @@
+name: Build macOS
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+    outputs:
+      artifact-name:
+        description: 'Name of the artifact'
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    runs-on: macos-latest
+    outputs:
+      artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install Flutter dependencies
+        working-directory: frontend_flutter
+        run: flutter pub get
+
+      - name: Generate tray icons
+        run: python packaging/create_tray_icons.py
+
+      - name: Build Flutter macOS app
+        working-directory: frontend_flutter
+        run: flutter build macos --release
+
+      - name: Create VERSION file
+        run: echo "${{ inputs.version }}" > VERSION
+
+      - name: Package with PyInstaller
+        run: |
+          python -m PyInstaller packaging/launcher-macos.spec --clean
+          ls -la dist/
+
+      - name: Create DMG (if create-dmg available)
+        continue-on-error: true
+        run: |
+          if command -v create-dmg &> /dev/null; then
+            create-dmg \
+              --volname "OS AI" \
+              --window-pos 200 120 \
+              --window-size 800 400 \
+              --icon-size 100 \
+              --app-drop-link 600 185 \
+              "dist/OS_AI_${{ inputs.version }}_macOS.dmg" \
+              "dist/OS AI.app"
+          else
+            echo "create-dmg not found, skipping DMG creation"
+          fi
+
+      - name: Create ZIP archive
+        working-directory: dist
+        run: |
+          ditto -c -k --keepParent "OS AI.app" "OS_AI_${{ inputs.version }}_macOS.zip"
+          ls -lh *.zip
+
+      - name: Upload artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-ai-macos-${{ inputs.version }}
+          path: |
+            dist/OS_AI_*.zip
+            dist/OS_AI_*.dmg
+          retention-days: 7

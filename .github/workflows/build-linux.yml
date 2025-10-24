@@ -1,0 +1,112 @@
+name: Build Linux
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+    outputs:
+      artifact-name:
+        description: 'Name of the artifact'
+        value: ${{ jobs.build.outputs.artifact-name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.1'
+          channel: 'stable'
+          cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libglib2.0-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libappindicator3-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install Flutter dependencies
+        working-directory: frontend_flutter
+        run: flutter pub get
+
+      - name: Generate tray icons
+        run: python packaging/create_tray_icons.py
+
+      - name: Build Flutter Linux app
+        working-directory: frontend_flutter
+        run: flutter build linux --release
+
+      - name: Create VERSION file
+        run: echo "${{ inputs.version }}" > VERSION
+
+      - name: Package with PyInstaller
+        run: |
+          python -m PyInstaller packaging/launcher-linux.spec --clean
+          ls -la dist/
+
+      - name: Create AppImage (if available)
+        continue-on-error: true
+        run: |
+          if command -v appimagetool &> /dev/null; then
+            # Create AppDir structure
+            mkdir -p AppDir/usr/bin
+            cp -r dist/os_ai/* AppDir/usr/bin/
+
+            # Create desktop file
+            cat > AppDir/os_ai.desktop <<EOF
+          [Desktop Entry]
+          Name=OS AI
+          Exec=os_ai
+          Icon=os_ai
+          Type=Application
+          Categories=Utility;
+          EOF
+
+            # Create AppImage
+            appimagetool AppDir dist/OS_AI_${{ inputs.version }}_Linux.AppImage
+          else
+            echo "appimagetool not found, skipping AppImage creation"
+          fi
+
+      - name: Create TAR.GZ archive
+        working-directory: dist
+        run: |
+          tar -czf OS_AI_${{ inputs.version }}_Linux.tar.gz os_ai
+          ls -lh *.tar.gz
+
+      - name: Upload artifacts
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: os-ai-linux-${{ inputs.version }}
+          path: |
+            dist/OS_AI_*.tar.gz
+            dist/OS_AI_*.AppImage
+          retention-days: 7
