@@ -17,9 +17,9 @@ FLUTTER_APP = os.path.join(ROOT, 'frontend_flutter', 'build', 'macos', 'Build', 
 if os.path.exists(FLUTTER_APP):
     # Bundle entire Flutter .app into Resources
     datas.append((FLUTTER_APP, 'flutter_app/frontend_flutter.app'))
-    print(f"✓ Including Flutter app: {FLUTTER_APP}")
+    print(f"[OK] Including Flutter app: {FLUTTER_APP}")
 else:
-    print(f"⚠ Flutter app not found at: {FLUTTER_APP}")
+    print(f"[WARNING] Flutter app not found at: {FLUTTER_APP}")
     print("  You need to build Flutter first: cd frontend_flutter && flutter build macos --release")
 
 # Bundle macOS sound assets

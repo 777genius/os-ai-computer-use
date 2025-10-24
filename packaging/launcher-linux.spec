@@ -16,9 +16,9 @@ FLUTTER_APP = os.path.join(ROOT, 'frontend_flutter', 'build', 'linux', 'x64', 'r
 if os.path.exists(FLUTTER_APP):
     # Bundle entire Flutter bundle folder
     datas.append((FLUTTER_APP, 'flutter_app'))
-    print(f"✓ Including Flutter app: {FLUTTER_APP}")
+    print(f"[OK] Including Flutter app: {FLUTTER_APP}")
 else:
-    print(f"⚠ Flutter app not found at: {FLUTTER_APP}")
+    print(f"[WARNING] Flutter app not found at: {FLUTTER_APP}")
     print("  You need to build Flutter first: cd frontend_flutter && flutter build linux --release")
 
 # Bundle version file
