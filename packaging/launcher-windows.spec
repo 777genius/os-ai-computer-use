@@ -88,7 +88,6 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,  # TODO: Add .ico icon
-    version='file_version_info.txt'  # Will be created by CI/CD
 )
 
 coll = COLLECT(
