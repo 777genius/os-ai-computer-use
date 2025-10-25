@@ -9,8 +9,14 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart'
-    as _i513;
+import 'package:dio/dio.dart' as _i361;
+import 'package:frontend_flutter/src/app/di/app_module.dart' as _i372;
+import 'package:frontend_flutter/src/app/services/api_key_validator.dart'
+    as _i923;
+import 'package:frontend_flutter/src/app/services/auto_updater_service.dart'
+    as _i636;
+import 'package:frontend_flutter/src/app/services/secure_storage_service.dart'
+    as _i308;
 import 'package:frontend_flutter/src/features/chat/application/usecases/run_task_usecase.dart'
     as _i912;
 import 'package:frontend_flutter/src/features/chat/data/datasources/backend_rest_client.dart'
@@ -31,6 +37,12 @@ extension GetItInjectableX on _i174.GetIt {
     _i526.EnvironmentFilter? environmentFilter,
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    final appModule = _$AppModule();
+    gh.lazySingleton<_i361.Dio>(() => appModule.dio);
+    gh.lazySingleton<_i923.ApiKeyValidator>(() => _i923.ApiKeyValidator());
+    gh.lazySingleton<_i308.SecureStorageService>(
+      () => _i308.SecureStorageService(),
+    );
     gh.lazySingleton<_i286.BackendRestClient>(() => _i286.BackendRestClient());
     gh.lazySingleton<_i468.BackendWsClient>(() => _i468.BackendWsClient());
     gh.lazySingleton<_i673.ChatRepository>(
@@ -39,12 +51,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i286.BackendRestClient>(),
       ),
     );
-    gh.factory<_i513.ChatStore>(
-      () => _i513.ChatStore(gh<_i673.ChatRepository>()),
-    );
     gh.factory<_i912.RunTaskUseCase>(
       () => _i912.RunTaskUseCase(gh<_i673.ChatRepository>()),
+    );
+    gh.lazySingleton<_i636.AutoUpdaterService>(
+      () => _i636.AutoUpdaterService(gh<_i361.Dio>()),
     );
     return this;
   }
 }
+
+class _$AppModule extends _i372.AppModule {}

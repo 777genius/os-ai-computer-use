@@ -7,13 +7,61 @@ import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repo
 import 'package:frontend_flutter/src/features/chat/data/datasources/backend_ws_client.dart';
 import 'package:frontend_flutter/src/features/chat/data/datasources/backend_rest_client.dart';
 import 'package:frontend_flutter/src/app/config/app_config.dart';
+import 'package:frontend_flutter/src/app/services/secure_storage_service.dart';
 import 'package:frontend_flutter/src/presentation/stores/theme_store.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
+import 'package:frontend_flutter/src/presentation/settings/first_run_dialog.dart';
 import 'package:frontend_flutter/src/features/chat/data/cache/chat_cache.dart';
 import 'package:frontend_flutter/src/features/chat/data/cache/hive_chat_cache.dart';
+import 'package:get_it/get_it.dart';
 
-class AppRoot extends StatelessWidget {
+class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
+
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  @override
+  void initState() {
+    super.initState();
+    // Check if first run after build completes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFirstRun();
+    });
+  }
+
+  Future<void> _checkFirstRun() async {
+    try {
+      final storage = GetIt.I<SecureStorageService>();
+      final hasCompleted = await storage.hasCompletedSetup();
+
+      if (!hasCompleted && mounted) {
+        await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const FirstRunDialog(),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error checking first run: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    // Clean up ChatRepositoryImpl resources
+    try {
+      final repo = context.read<ChatRepository>();
+      if (repo is ChatRepositoryImpl) {
+        repo.dispose();
+      }
+    } catch (e) {
+      debugPrint('Error disposing ChatRepository: $e');
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +145,9 @@ class AppRoot extends StatelessWidget {
       darkTheme: dark,
       themeMode: themeStore.mode,
       builder: (context, child) {
+        // AppConfig is now provided from main.dart with loaded API keys
         return MultiProvider(
           providers: [
-            ChangeNotifierProvider(create: (_) => AppConfig()),
             Provider(create: (_) => BackendWsClient()),
             Provider(create: (_) => BackendRestClient()),
             Provider<ChatCache>(create: (_) => HiveChatCache()),
@@ -108,7 +156,11 @@ class AppRoot extends StatelessWidget {
                 // push config into clients
                 rest.baseUrl = cfg.restBase();
                 rest.bearer = cfg.token;
-                return prev ?? ChatRepositoryImpl(ws, rest, wsUriProvider: cfg.wsUri);
+                final repo = prev ?? ChatRepositoryImpl(ws, rest);
+                if (repo is ChatRepositoryImpl) {
+                  repo.updateWsUriProvider(cfg.wsUri);
+                }
+                return repo;
               },
             ),
             ProxyProvider2<ChatRepository, ChatCache, ChatStore>(

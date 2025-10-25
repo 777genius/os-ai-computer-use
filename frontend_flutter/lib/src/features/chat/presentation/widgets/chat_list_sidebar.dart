@@ -14,7 +14,7 @@ class ChatListSidebar extends StatelessWidget {
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
         border: Border(right: BorderSide(color: context.themeColors.surfaceBorder)),
       ),
       child: Column(

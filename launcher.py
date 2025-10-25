@@ -42,6 +42,10 @@ class OSAILauncher:
         self.is_running = True
         self.tray_icon: Optional[pystray.Icon] = None
 
+        # Threading events for lifecycle management
+        self.shutdown_event = threading.Event()
+        self.backend_started = threading.Event()
+
         # Determine paths
         self.root_dir = _ROOT
         self.flutter_app_path = self._find_flutter_app()
@@ -65,10 +69,8 @@ class OSAILauncher:
     def _find_flutter_app(self) -> Optional[Path]:
         """Find Flutter application executable
 
-        When bundled with PyInstaller, Flutter app should be in:
-        - macOS: .app/Contents/Resources/flutter_app/
-        - Windows: resources/flutter_app/
-        - Linux: resources/flutter_app/
+        When bundled with PyInstaller, Flutter app is in:
+        - All platforms: _MEIPASS/flutter_app/ (PyInstaller temp extraction directory)
 
         For development, look in frontend_flutter/build/
         """
@@ -76,26 +78,24 @@ class OSAILauncher:
 
         # Check if running from PyInstaller bundle
         if getattr(sys, 'frozen', False):
+            # PyInstaller extracts data files to _MEIPASS temp directory
             bundle_dir = Path(sys._MEIPASS)  # type: ignore
+            app_path = bundle_dir / "flutter_app"
 
             if system == "Darwin":
-                # macOS: look in .app/Contents/Resources/
-                app_path = bundle_dir.parent / "Resources" / "flutter_app"
+                # macOS: spec bundles to flutter_app/frontend_flutter.app
                 candidates = [
-                    app_path / "macos" / "Runner.app" / "Contents" / "MacOS" / "Runner",
-                    app_path / "OS AI.app" / "Contents" / "MacOS" / "OS AI",
+                    app_path / "frontend_flutter.app" / "Contents" / "MacOS" / "frontend_flutter",
                 ]
             elif system == "Windows":
-                app_path = bundle_dir / "resources" / "flutter_app"
+                # Windows: spec bundles entire Release folder to flutter_app/
                 candidates = [
-                    app_path / "build" / "windows" / "runner" / "Release" / "frontend_flutter.exe",
-                    app_path / "OS_AI.exe",
+                    app_path / "frontend_flutter.exe",
                 ]
             else:  # Linux
-                app_path = bundle_dir / "resources" / "flutter_app"
+                # Linux: spec bundles entire bundle folder to flutter_app/
                 candidates = [
-                    app_path / "build" / "linux" / "x64" / "release" / "bundle" / "frontend_flutter",
-                    app_path / "os_ai",
+                    app_path / "frontend_flutter",
                 ]
         else:
             # Development mode - look in frontend_flutter/build/
@@ -142,6 +142,15 @@ class OSAILauncher:
         """Start the FastAPI backend server in a separate thread"""
         self.logger.info("Starting backend server...")
 
+        # Check for API key configuration
+        has_anthropic_key = bool(os.environ.get('ANTHROPIC_API_KEY'))
+        has_openai_key = bool(os.environ.get('OPENAI_API_KEY'))
+
+        if not has_anthropic_key:
+            self.logger.info("No ANTHROPIC_API_KEY in environment - API key will be provided by frontend")
+        else:
+            self.logger.info("ANTHROPIC_API_KEY found in environment variables")
+
         def run_backend():
             try:
                 # Set environment defaults
@@ -149,21 +158,34 @@ class OSAILauncher:
                 os.environ.setdefault('OS_AI_BACKEND_PORT', '8765')
 
                 from os_ai_backend.app import main as backend_main
+
+                # Signal that backend is starting
+                self.backend_started.set()
+
                 backend_main()
             except Exception as e:
                 self.logger.exception(f"Backend error: {e}")
+                # Clear the event if backend crashes
+                self.backend_started.clear()
 
         self.backend_thread = threading.Thread(target=run_backend, daemon=True)
         self.backend_thread.start()
 
-        # Give backend time to start
-        time.sleep(2)
-        self.logger.info("Backend server started on http://127.0.0.1:8765")
+        # Wait for backend to signal it started (or timeout after 5 seconds)
+        if self.backend_started.wait(timeout=5):
+            self.logger.info("Backend server started on http://127.0.0.1:8765")
+        else:
+            self.logger.error("Backend failed to start within 5 seconds")
 
     def start_flutter(self):
         """Start the Flutter application"""
         if not self.flutter_app_path:
             self.logger.error("Flutter app not found, cannot start")
+            return
+
+        # Check if backend is running
+        if not self.backend_started.is_set():
+            self.logger.error("Backend is not running, cannot start Flutter")
             return
 
         self.logger.info(f"Starting Flutter app: {self.flutter_app_path}")
@@ -183,7 +205,10 @@ class OSAILauncher:
         self.logger.info("Stopping OS AI...")
         self.is_running = False
 
-        # Stop Flutter
+        # Signal backend to shutdown
+        self.shutdown_event.set()
+
+        # Stop Flutter first
         if self.flutter_process:
             self.logger.info("Terminating Flutter app...")
             self.flutter_process.terminate()
@@ -193,7 +218,13 @@ class OSAILauncher:
                 self.logger.warning("Flutter didn't terminate, killing...")
                 self.flutter_process.kill()
 
-        # Backend thread will stop when main process exits (daemon=True)
+        # Give backend thread a moment to gracefully close connections
+        if self.backend_thread and self.backend_thread.is_alive():
+            self.logger.info("Waiting for backend to shutdown gracefully...")
+            self.backend_thread.join(timeout=3)
+            if self.backend_thread.is_alive():
+                self.logger.warning("Backend didn't shutdown gracefully, will be terminated")
+
         self.logger.info("Shutdown complete")
 
     def on_quit(self, icon, item):
@@ -244,8 +275,18 @@ class OSAILauncher:
             # Start backend
             self.start_backend()
 
+            # Check if backend started successfully
+            if not self.backend_started.is_set():
+                self.logger.error("Failed to start backend. Exiting.")
+                sys.exit(1)
+
             # Start Flutter
             self.start_flutter()
+
+            # Check if Flutter started successfully
+            if self.flutter_process is None:
+                self.logger.error("Failed to start Flutter. Exiting.")
+                sys.exit(1)
 
             # Setup and run tray (blocking call)
             self.setup_tray()

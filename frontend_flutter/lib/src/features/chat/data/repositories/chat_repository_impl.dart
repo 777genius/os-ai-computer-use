@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:frontend_flutter/src/features/chat/domain/entities/chat_message.dart';
@@ -14,9 +15,15 @@ import 'package:frontend_flutter/src/features/chat/domain/entities/connection_st
 class ChatRepositoryImpl implements ChatRepository {
   final BackendWsClient _ws;
   final BackendRestClient _rest;
-  final Uri Function() _wsUriProvider;
-  ChatRepositoryImpl(this._ws, this._rest, {Uri Function()? wsUriProvider})
-      : _wsUriProvider = wsUriProvider ?? (() => Uri.parse('ws://127.0.0.1:8765/ws?token=secret'));
+  Uri Function() _wsUriProvider;
+
+  ChatRepositoryImpl(this._ws, this._rest)
+      : _wsUriProvider = (() => Uri.parse('ws://127.0.0.1:8765/ws?token=secret'));
+
+  /// Update the WebSocket URI provider (used by ProxyProvider to inject AppConfig)
+  void updateWsUriProvider(Uri Function() provider) {
+    _wsUriProvider = provider;
+  }
 
   final _msgCtrl = StreamController<ChatMessage>.broadcast();
   final _usageCtrl = StreamController<CostUsage>.broadcast();
@@ -128,8 +135,10 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   void _onWs(Map<String, dynamic> m) {
-    // ignore: avoid_print
-    print('[Repo] WS <- ' + (m['method']?.toString() ?? 'resp id=' + (m['id']?.toString() ?? 'unknown')));
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[Repo] WS <- ' + (m['method']?.toString() ?? 'resp id=' + (m['id']?.toString() ?? 'unknown')));
+    }
     // Track last message time to stabilize effective connection status
     _emitEffectiveStatus();
     if (m.containsKey('method')) {
@@ -137,8 +146,10 @@ class ChatRepositoryImpl implements ChatRepository {
       if (method == 'event.log') {
         final p = m['params'] as Map<String, dynamic>;
         final msg = (p['message'] as String?) ?? '';
-        // ignore: avoid_print
-        print('[Repo] event.log: ' + msg);
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Repo] event.log: ' + msg);
+        }
         // Если это tool_result ок, рисуем галочку
         if (msg.startsWith('done:') || msg.startsWith('ok') || msg.toLowerCase().contains('tool_result')) {
           final lastAction = _lastActionNameFromQueue();
@@ -190,8 +201,10 @@ class ChatRepositoryImpl implements ChatRepository {
         _recordHistory(cmThought, chatId: _jobChat[_currentJobId ?? ''] ?? _activeChatId);
       } else if (method == 'event.screenshot') {
         final p = m['params'] as Map<String, dynamic>;
-        // ignore: avoid_print
-        print('[Repo] event.screenshot len=' + ((p['data'] as String?)?.length.toString() ?? '0'));
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Repo] event.screenshot len=' + ((p['data'] as String?)?.length.toString() ?? '0'));
+        }
         _msgCtrl.add(ChatMessage(
           id: _nextId(),
           role: 'assistant',
@@ -204,8 +217,10 @@ class ChatRepositoryImpl implements ChatRepository {
         final name = p['name'] as String?;
         final status = p['status'] as String?;
         final meta = (p['meta'] as Map?)?.cast<String, dynamic>();
-        // ignore: avoid_print
-        print('[Repo] event.action: ' + (name ?? '') + ' [' + (status ?? '') + ']');
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Repo] event.action: ' + (name ?? '') + ' [' + (status ?? '') + ']');
+        }
         _rememberActionName(meta, name);
         final cmAction = ChatMessage(
           id: _nextId(),
@@ -228,8 +243,10 @@ class ChatRepositoryImpl implements ChatRepository {
         final p = m['params'] as Map<String, dynamic>;
         final inTok = (p['input_tokens'] as num? ?? 0).toInt();
         final outTok = (p['output_tokens'] as num? ?? 0).toInt();
-        // ignore: avoid_print
-        print('[Repo] event.usage in=' + inTok.toString() + ' out=' + outTok.toString());
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Repo] event.usage in=' + inTok.toString() + ' out=' + outTok.toString());
+        }
         final u = CostUsage(
           inputTokens: inTok,
           outputTokens: outTok,
@@ -254,8 +271,10 @@ class ChatRepositoryImpl implements ChatRepository {
         );
         _msgCtrl.add(cmUsage);
       } else if (method == 'event.final') {
-        // ignore: avoid_print
-        print('[Repo] event.final');
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('[Repo] event.final');
+        }
         // Закомментировано: скрываем сводное финальное сообщение из UI
         // final text = p['text'] as String?;
         // if (text != null && text.isNotEmpty) {
@@ -303,8 +322,10 @@ class ChatRepositoryImpl implements ChatRepository {
               // Update _currentJobId with the real jobId (UUID) from backend
               if (respId == _currentJobId) {
                 _currentJobId = jobId;
-                // ignore: avoid_print
-                print('[Repo] Updated _currentJobId from reqId=$respId to jobId=$jobId');
+                if (kDebugMode) {
+                  // ignore: avoid_print
+                  print('[Repo] Updated _currentJobId from reqId=$respId to jobId=$jobId');
+                }
                 // Если отмена была запрошена до получения jobId — отправляем cancel сейчас
                 if (_pendingCancel) {
                   _pendingCancel = false;
@@ -351,8 +372,10 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> cancelJob(String jobId) async {
     final id = _nextId();
-    // ignore: avoid_print
-    print('[Repo] Cancelling jobId=$jobId');
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[Repo] Cancelling jobId=$jobId');
+    }
     _ws.send({'jsonrpc': '2.0', 'id': id, 'method': 'agent.cancel', 'params': {'jobId': jobId}});
   }
 

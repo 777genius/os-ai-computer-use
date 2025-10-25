@@ -14,12 +14,25 @@ class BackendWsClient {
   // ignore: unused_field
   Stream<dynamic>? _stream;
   StreamSubscription? _sub;
+  StreamSubscription? _mappedSub;
   final _statusCtrl = StreamController<ConnectionStatus>.broadcast();
   StreamSubscription<List<ConnectivityResult>>? _netSub;
   Stream<Map<String, dynamic>>? _mapped;
   Uri? _lastUri;
   bool _reconnecting = false;
   bool _connectedOnce = false;
+  bool _isClosed = false;
+
+  /// Helper to safely add status events, checking if controller is closed
+  void _addStatus(ConnectionStatus status) {
+    if (!_isClosed && !_statusCtrl.isClosed) {
+      try {
+        _statusCtrl.add(status);
+      } catch (_) {
+        // Ignore - controller may have been closed concurrently
+      }
+    }
+  }
 
   void _setupChannel(WebSocketChannel ch) {
     _ch = ch;
@@ -29,12 +42,12 @@ class BackendWsClient {
         .where((ev) => ev is String)
         .map((ev) => jsonDecode(ev as String) as Map<String, dynamic>)
         .asBroadcastStream();
-    _mapped!.listen((m) {
+    _mappedSub = _mapped!.listen((m) {
       // ignore: avoid_print
       print('[WS] msg ' + ((m['method'] ?? m['id'] ?? 'unknown')).toString());
       if (!_connectedOnce) {
         _connectedOnce = true;
-        _statusCtrl.add(ConnectionStatus.connected);
+        _addStatus(ConnectionStatus.connected);
       }
     });
     // ignore: avoid_print
@@ -42,13 +55,13 @@ class BackendWsClient {
     _sub = ch.stream.listen((_) {}, onDone: () {
       // ignore: avoid_print
       print('[WS] onDone -> disconnected');
-      _statusCtrl.add(ConnectionStatus.disconnected);
+      _addStatus(ConnectionStatus.disconnected);
       _ch = null;
       _startReconnectLoop();
     }, onError: (_) {
       // ignore: avoid_print
       print('[WS] onError -> error');
-      _statusCtrl.add(ConnectionStatus.error);
+      _addStatus(ConnectionStatus.error);
       _ch = null;
       _startReconnectLoop();
     }, cancelOnError: false);
@@ -61,7 +74,7 @@ class BackendWsClient {
     int attempt = 0;
     while (_ch == null && _lastUri != null) {
       try {
-        _statusCtrl.add(ConnectionStatus.connecting);
+        _addStatus(ConnectionStatus.connecting);
         final ms = (300 * (attempt + 1)).clamp(300, 30000);
         // ignore: avoid_print
         print('[WS] reconnect attempt=${attempt + 1} backoffMs=' + ms.toString());
@@ -78,15 +91,15 @@ class BackendWsClient {
   }
 
   Future<void> connect(Uri uri) async {
-    // debug prints
+    // debug prints (без query параметров - там API ключи!)
     // ignore: avoid_print
-    print('[WS] connect uri=' + uri.toString());
+    print('[WS] connect to ${uri.host}:${uri.port}${uri.path}');
     _lastUri = uri;
     try {
       _netSub ??= Connectivity().onConnectivityChanged.listen((results) {
         final hasNet = results.any((r) => r != ConnectivityResult.none);
         if (!hasNet) {
-          _statusCtrl.add(ConnectionStatus.offline);
+          _addStatus(ConnectionStatus.offline);
           // ignore: avoid_print
           print('[WS] network -> offline');
         } else {
@@ -100,18 +113,25 @@ class BackendWsClient {
       // Плагина может не быть (desktop dev). Игнорируем.
     }
     int attempt = 0;
-    while (_ch == null) {
+    const maxAttempts = 10;  // Prevent infinite loop
+    while (_ch == null && attempt < maxAttempts) {
       try {
-        _statusCtrl.add(ConnectionStatus.connecting);
+        _addStatus(ConnectionStatus.connecting);
         // ignore: avoid_print
-        print('[WS] connecting... attempt=${attempt + 1}');
+        print('[WS] connecting... attempt=${attempt + 1}/$maxAttempts');
         final ch = io.IOWebSocketChannel.connect(uri, pingInterval: const Duration(seconds: 10));
         _setupChannel(ch);
         break;
       } catch (_) {
         attempt += 1;
+        if (attempt >= maxAttempts) {
+          // ignore: avoid_print
+          print('[WS] Failed to connect after $maxAttempts attempts');
+          _addStatus(ConnectionStatus.error);
+          break;
+        }
         final ms = (300 * attempt).clamp(300, 30 * 1000);
-        _statusCtrl.add(ConnectionStatus.connecting);
+        _addStatus(ConnectionStatus.connecting);
         // ignore: avoid_print
         print('[WS] connect retry after ' + ms.toString() + 'ms');
         await Future.delayed(Duration(milliseconds: ms));
@@ -126,13 +146,30 @@ class BackendWsClient {
   }
 
   Future<void> close() async {
-    await _sub?.cancel();
-    await _netSub?.cancel();
-    await _ch?.sink.close();
-    _ch = null;
-    _stream = null;
-    _statusCtrl.add(ConnectionStatus.disconnected);
-    await _statusCtrl.close();
+    // Guard against double close
+    if (_isClosed) return;
+    _isClosed = true;
+
+    try {
+      // Cancel all subscriptions
+      await _sub?.cancel();
+      await _mappedSub?.cancel();
+      await _netSub?.cancel();
+
+      // Close WebSocket
+      await _ch?.sink.close();
+      _ch = null;
+      _stream = null;
+
+      // Send final status before closing controller
+      _addStatus(ConnectionStatus.disconnected);
+
+      // Close status controller
+      await _statusCtrl.close();
+    } catch (e) {
+      // ignore: avoid_print
+      print('[WS] Error during close: $e');
+    }
   }
 
   Stream<ConnectionStatus> connectionStatus() => _statusCtrl.stream;

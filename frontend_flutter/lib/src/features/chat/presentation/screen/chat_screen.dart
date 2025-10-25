@@ -38,7 +38,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
         surfaceTintColor: Colors.transparent,
         title: Observer(builder: (_) {
           final storeWatch = context.watch<ChatStore?>();
@@ -132,7 +132,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Expanded(
             child: Container(
-              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
               child: UploadOverlay(
                 child: _ChatDropArea(
                   child: const Column(

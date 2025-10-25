@@ -10,6 +10,30 @@ https://github.com/user-attachments/assets/5b8e5ff1-5cbd-4515-b593-cd7de0b222cd
 
 
 
+## For End Users
+
+**Want to use OS AI without coding?** Download the latest release for your platform:
+
+→ **[Download Latest Release](https://github.com/777genius/os-ai-computer-use/releases)**
+
+Available for:
+- macOS (Intel + Apple Silicon)
+- Windows (x64)
+- Linux (x64)
+- Web
+
+**New to OS AI?** Read the **[User Guide](USER_GUIDE.md)** for installation and setup instructions.
+
+**Key Features:**
+- 🤖 Interact with Claude AI for computer automation
+- 🔒 Secure API key storage in system keychain
+- 💬 Chat-based interface with visual feedback
+- 📊 Real-time cost tracking
+- 🎨 Cross-platform Flutter UI
+
+---
+
+## For Developers
 
 ## Table of Contents
 - [OS AI Computer Use](#os-ai-computer-use)

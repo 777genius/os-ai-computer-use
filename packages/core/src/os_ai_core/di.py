@@ -13,14 +13,15 @@ from os_ai_core.tools.computer import computer_tool_handler
 
 
 class LLMModule(injector.Module):
-    def __init__(self, provider: Optional[str] = None) -> None:
+    def __init__(self, provider: Optional[str] = None, api_key: Optional[str] = None) -> None:
         self._provider = (provider or LLM_PROVIDER).lower()
+        self._api_key = api_key
 
     @injector.provider
     def provide_llm_client(self) -> LLMClient:  # type: ignore[override]
         if self._provider == "openai":
-            return OpenAIClient()
-        return AnthropicClient()
+            return OpenAIClient(api_key=self._api_key)
+        return AnthropicClient(api_key=self._api_key)
 
 
 class ToolsModule(injector.Module):
@@ -31,7 +32,7 @@ class ToolsModule(injector.Module):
         return reg
 
 
-def create_container(provider: Optional[str] = None) -> injector.Injector:
-    return injector.Injector([LLMModule(provider), ToolsModule()])
+def create_container(provider: Optional[str] = None, api_key: Optional[str] = None) -> injector.Injector:
+    return injector.Injector([LLMModule(provider, api_key=api_key), ToolsModule()])
 
 

@@ -5,6 +5,7 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
+import httpx
 from fastapi import WebSocket
 
 try:
@@ -41,6 +42,16 @@ class WebSocketRPCHandler:
         self._logger = logging.getLogger(LOGGER_NAME)
 
     async def handle(self, websocket: WebSocket) -> None:
+        # Extract API key from WebSocket query parameters (sent by frontend)
+        # Store in local variable to avoid race conditions between concurrent connections
+        query_params = websocket.query_params
+        api_key = query_params.get('anthropic_api_key')
+
+        if api_key:
+            self._logger.info("API key provided via WebSocket query params")
+        else:
+            self._logger.info("No API key in WebSocket params, will use environment variable")
+
         metrics.inc("ws_connections", 1)
         try:
             while True:
@@ -61,12 +72,17 @@ class WebSocketRPCHandler:
 
                 if method == "session.create":
                     provider = params.get("provider")
-                    session_id, client, tools = self._create_session(provider)
-                    self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
-                    await self._send_result(websocket, req_id, {
-                        "sessionId": session_id,
-                        "capabilities": {"ws": True, "jsonrpc": True}
-                    })
+                    try:
+                        session_id, client, tools = self._create_session(provider, api_key=api_key)
+                        self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
+                        await self._send_result(websocket, req_id, {
+                            "sessionId": session_id,
+                            "capabilities": {"ws": True, "jsonrpc": True}
+                        })
+                    except RuntimeError as e:
+                        self._logger.warning("session.create failed: %s", str(e))
+                        await self._send_error(websocket, req_id, -32000,
+                            "API key required. Please configure your Anthropic API key in Settings.")
                 elif method == "agent.run":
                     task_text = params.get("task") or ""
                     if not task_text:
@@ -78,7 +94,14 @@ class WebSocketRPCHandler:
                     attachments = params.get("attachments") or []
 
                     # Build session and run orchestration in background
-                    session_id, client, tools = self._create_session(provider)
+                    try:
+                        session_id, client, tools = self._create_session(provider, api_key=api_key)
+                    except RuntimeError as e:
+                        self._logger.warning("agent.run failed: %s", str(e))
+                        await self._send_error(websocket, req_id, -32000,
+                            "API key required. Please configure your Anthropic API key in Settings.")
+                        continue
+
                     job_id = str(uuid.uuid4())
                     self._logger.info("agent.run job=%s session=%s provider=%s", job_id, session_id, provider or "default")
                     await self._send_result(websocket, req_id, {"jobId": job_id, "sessionId": session_id})
@@ -185,8 +208,8 @@ class WebSocketRPCHandler:
                             text = m.get("text")
                             if role and isinstance(text, str):
                                 base_msgs.append(Message(role=role, content=[TextPart(text=text)]))
-            except Exception:
-                pass
+            except Exception as e:
+                self._logger.debug("Failed to parse initial_messages: %s", e)
             # Inject attachments as user messages (images) before the task
             try:
                 if attachments:
@@ -204,12 +227,22 @@ class WebSocketRPCHandler:
                                 import base64
                                 b64 = base64.b64encode(data).decode("ascii")
                                 base_msgs.append(Message(role="user", content=[ImagePart(media_type=a.get("mime") or "application/octet-stream", data_base64=b64)]))
-                            except Exception:
-                                pass
-            except Exception:
-                pass
+                            except Exception as e:
+                                self._logger.debug("Failed to load attachment %s: %s", fid, e)
+            except Exception as e:
+                self._logger.debug("Failed to process attachments: %s", e)
 
-            messages = orch.run(task_text, tool_descs, system_prompt, max_iterations=max_iterations, cancel_token=cancel, on_event=on_event, initial_messages=base_msgs)
+            # Run orchestrator with auth error handling
+            try:
+                messages = orch.run(task_text, tool_descs, system_prompt, max_iterations=max_iterations, cancel_token=cancel, on_event=on_event, initial_messages=base_msgs)
+            except httpx.HTTPStatusError as e:
+                # Check for authentication/authorization errors
+                if e.response.status_code in (401, 403):
+                    raise RuntimeError(
+                        "Invalid or expired API key. Please check your Anthropic API key in Settings and ensure it is valid."
+                    ) from e
+                raise  # Re-raise other HTTP errors
+
             final_texts: list[str] = []
             for m in messages:
                 if getattr(m, "role", None) == "assistant":
@@ -219,8 +252,8 @@ class WebSocketRPCHandler:
                                 txt = str(getattr(p, "text", ""))
                                 if txt:
                                     final_texts.append(txt)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            self._logger.debug("Failed to extract text from message part: %s", e)
             return {
                 "text": "\n".join(final_texts).strip(),
                 "usage": {
@@ -243,8 +276,8 @@ class WebSocketRPCHandler:
         await self._send_event(websocket, "event.final", {"jobId": job_id, **result})
         self._logger.info("agent.run completed job=%s status=%s", job_id, result.get("status"))
 
-    def _create_session(self, provider: Optional[str]) -> tuple[str, LLMClient, ToolRegistry]:
-        inj = _create_container(provider)
+    def _create_session(self, provider: Optional[str], api_key: Optional[str] = None) -> tuple[str, LLMClient, ToolRegistry]:
+        inj = _create_container(provider, api_key=api_key)
         client = inj.get(LLMClient)
         tools = inj.get(ToolRegistry)
         session_id = str(uuid.uuid4())
@@ -277,8 +310,8 @@ class WebSocketRPCHandler:
 
 
 
-def _create_container(provider: Optional[str] = None):
+def _create_container(provider: Optional[str] = None, api_key: Optional[str] = None):
     # Lazy import to avoid hard dependency at import time (helps tests/CI without injector installed)
     from os_ai_core.di import create_container as _cc  # type: ignore
-    return _cc(provider)
+    return _cc(provider, api_key=api_key)
 
