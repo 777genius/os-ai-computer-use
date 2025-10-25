@@ -5,6 +5,43 @@ All notable changes to OS AI Computer Use will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-10-25
+
+### Fixed
+
+#### Critical Bug Fixes
+- **Bug #10 (9/10)** - Memory leak: ChatRepositoryImpl.dispose() never called
+  - Added dispose() override in AppRoot (_AppRootState)
+  - Properly clean up 4 StreamControllers, 2 StreamSubscriptions, and 1 Timer
+  - Files: `frontend_flutter/lib/src/presentation/app/app.dart:52-64`
+
+- **Bug #11 (7/10)** - Infinite loop in BackendWsClient.connect()
+  - Added maxAttempts = 10 to prevent UI freeze when backend unavailable
+  - Emit error status after max attempts reached
+  - Files: `frontend_flutter/lib/src/features/chat/data/datasources/backend_ws_client.dart:116-139`
+
+- **Bug #12 (4/10)** - Excessive production logging
+  - Wrapped all print() statements in `kDebugMode` checks (8 locations)
+  - Improves performance and reduces noise in production builds
+  - Files: `frontend_flutter/lib/src/features/chat/data/repositories/chat_repository_impl.dart`
+
+#### Window Transparency Restoration
+- **Restored original transparent window configuration** from commit 52f22db (Sept 17, 2025)
+  - Re-added 13 lines of macOS window transparency settings in MainFlutterWindow.swift
+  - Settings: isOpaque, backgroundColor, titleVisibility, hasShadow, layer configs, etc.
+  - These were accidentally deleted in commit a744a4b (Oct 19, 2025)
+  - Files: `frontend_flutter/macos/Runner/MainFlutterWindow.swift:11-26`
+
+- **Improved content visibility**
+  - Changed alpha from 0.5 to 0.95 for AppBar, panels, and sidebar
+  - Background fully transparent (desktop visible through empty areas)
+  - Content clearly visible with 95% opacity (great readability)
+  - Files:
+    - `frontend_flutter/lib/src/features/chat/presentation/screen/chat_screen.dart:41,135`
+    - `frontend_flutter/lib/src/features/chat/presentation/widgets/chat_list_sidebar.dart:17`
+
+---
+
 ## [1.0.0] - 2025-10-25
 
 ### Added
