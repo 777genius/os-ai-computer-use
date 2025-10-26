@@ -13,10 +13,10 @@ LAUNCHER_SCRIPT = os.path.join(ROOT, 'launcher.py')
 datas = []
 
 # Add Flutter app build (will be built by CI/CD before PyInstaller)
-FLUTTER_APP = os.path.join(ROOT, 'frontend_flutter', 'build', 'macos', 'Build', 'Products', 'Release', 'frontend_flutter.app')
+FLUTTER_APP = os.path.join(ROOT, 'frontend_flutter', 'build', 'macos', 'Build', 'Products', 'Release', 'OS AI.app')
 if os.path.exists(FLUTTER_APP):
-    # Bundle entire Flutter .app into Resources
-    datas.append((FLUTTER_APP, 'flutter_app/frontend_flutter.app'))
+    # Bundle entire Flutter .app directory into Resources as Tree (preserves structure)
+    # We'll add this via Tree in Analysis below, not in datas
     print(f"[OK] Including Flutter app: {FLUTTER_APP}")
 else:
     print(f"[WARNING] Flutter app not found at: {FLUTTER_APP}")
@@ -78,6 +78,11 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Add Flutter app as Tree (preserves directory structure and doesn't process as binary)
+if os.path.exists(FLUTTER_APP):
+    flutter_tree = Tree(FLUTTER_APP, prefix='flutter_app/OS AI.app', excludes=[])
+    a.datas += flutter_tree
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

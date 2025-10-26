@@ -83,9 +83,9 @@ class OSAILauncher:
             app_path = bundle_dir / "flutter_app"
 
             if system == "Darwin":
-                # macOS: spec bundles to flutter_app/frontend_flutter.app
+                # macOS: spec bundles to flutter_app/OS AI.app
                 candidates = [
-                    app_path / "frontend_flutter.app" / "Contents" / "MacOS" / "frontend_flutter",
+                    app_path / "OS AI.app" / "Contents" / "MacOS" / "OS AI",
                 ]
             elif system == "Windows":
                 # Windows: spec bundles entire Release folder to flutter_app/
@@ -101,7 +101,7 @@ class OSAILauncher:
             # Development mode - look in frontend_flutter/build/
             if system == "Darwin":
                 candidates = [
-                    self.root_dir / "frontend_flutter" / "build" / "macos" / "Build" / "Products" / "Release" / "frontend_flutter.app" / "Contents" / "MacOS" / "frontend_flutter",
+                    self.root_dir / "frontend_flutter" / "build" / "macos" / "Build" / "Products" / "Release" / "OS AI.app" / "Contents" / "MacOS" / "OS AI",
                 ]
             elif system == "Windows":
                 candidates = [
