@@ -5,6 +5,25 @@ All notable changes to OS AI Computer Use will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-10-26
+
+### Fixed
+
+#### Production Build Issues
+- **Fixed Flutter app not launching in production build**
+  - Updated `launcher.py` to search for correct Flutter app name: `OS AI.app` instead of `frontend_flutter.app`
+  - Updated `packaging/launcher-macos.spec` to bundle Flutter app using `Tree()` method
+  - This preserves the `.app` bundle structure and prevents PyInstaller from processing executables as binaries
+  - Affects both production (PyInstaller bundle) and development modes
+  - Files: `launcher.py:86-104`, `packaging/launcher-macos.spec:16-85`
+
+#### Impact
+- Production builds (`dist/OS AI.app`) now launch successfully
+- Both backend and Flutter frontend start correctly
+- System tray integration works as expected
+
+---
+
 ## [1.0.1] - 2025-10-25
 
 ### Fixed
