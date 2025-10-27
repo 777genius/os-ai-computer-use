@@ -45,7 +45,8 @@ jobs:
             libpango1.0-dev \
             libgdk-pixbuf2.0-dev \
             libappindicator3-dev \
-            libkeybinder-3.0-dev
+            libkeybinder-3.0-dev \
+            libsecret-1-dev
 
       - name: Install Python dependencies
         run: |
