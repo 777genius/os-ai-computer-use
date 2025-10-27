@@ -5,6 +5,23 @@ All notable changes to OS AI Computer Use will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-10-26
+
+### Fixed
+
+#### CI/CD Build Issues
+- **Fixed Linux build failure in CI/CD**
+  - Added missing `libsecret-1-dev` dependency to Linux build workflow
+  - This package is required by `flutter_secure_storage_linux` plugin
+  - Error was: "CMake Error: The following required packages were not found: libsecret-1>=0.18.4"
+  - Files: `.github/workflows/build-linux.yml:49`
+
+#### Impact
+- Linux builds in CI/CD now complete successfully
+- All four platforms (macOS, Windows, Linux, Web) now build correctly
+
+---
+
 ## [1.0.2] - 2025-10-26
 
 ### Fixed
