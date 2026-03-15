@@ -19,14 +19,14 @@ def client(monkeypatch):
     class DummyLLM(LLMClient):  # type: ignore[abstract-method]
         def __init__(self):
             self.calls = 0
-        def generate(self, *, messages, tools, system):  # type: ignore[override]
+        def generate(self, *, messages, tools, system, **kwargs):  # type: ignore[override]
             self.calls += 1
             # Return no tool calls and simple assistant
             return LLMResponse(messages=[Message(role="assistant", content=[TextPart(text=f"iter{self.calls}")])], tool_calls=[], usage=Usage(input_tokens=1, output_tokens=2))
         def format_tool_result(self, result):  # type: ignore[override]
             return Message(role="user", content=[TextPart(text="tool_result")])
 
-    def fake_container(_provider=None):
+    def fake_container(_provider=None, **kw):
         class _Inj:
             _llm = DummyLLM()
             def get(self, cls):

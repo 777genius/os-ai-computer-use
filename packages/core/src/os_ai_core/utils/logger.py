@@ -28,8 +28,8 @@ def setup_logging(debug: bool = False) -> logging.Logger:
 
     # Приглушаем шум от сторонних библиотек (если не в debug)
     if not debug:
-        logging.getLogger("anthropic").setLevel(logging.WARNING)
-        logging.getLogger("httpx").setLevel(logging.WARNING)
+        for sdk_logger in ("anthropic", "openai", "httpx"):
+            logging.getLogger(sdk_logger).setLevel(logging.WARNING)
 
     return logger
 

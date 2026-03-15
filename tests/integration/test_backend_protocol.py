@@ -10,7 +10,7 @@ import os_ai_backend.ws as backend_ws
 def client(monkeypatch):
     monkeypatch.setenv("OS_AI_BACKEND_TOKEN", "secret")
     # Ensure backend does not import real DI during tests
-    monkeypatch.setattr(backend_ws, "_create_container", lambda _p=None: type("_Inj", (), {"get": lambda self, cls: None})())
+    monkeypatch.setattr(backend_ws, "_create_container", lambda _p=None, **kw: type("_Inj", (), {"get": lambda self, cls: None})())
     app = create_app()
     return TestClient(app)
 

@@ -16,13 +16,13 @@ def client(monkeypatch):
     monkeypatch.setenv("OS_AI_BACKEND_TOKEN", "secret")
 
     class DummyLLM(LLMClient):  # type: ignore[abstract-method]
-        def generate(self, *, messages, tools, system):  # type: ignore[override]
+        def generate(self, *, messages, tools, system, **kwargs):  # type: ignore[override]
             return LLMResponse(messages=[Message(role="assistant", content=[TextPart(text="ok")])], tool_calls=[], usage=Usage())
 
         def format_tool_result(self, result):  # type: ignore[override]
             return Message(role="user", content=[TextPart(text="tool_result")])
 
-    def fake_container(_provider=None):
+    def fake_container(_provider=None, **kw):
         class _Inj:
             def get(self, cls):
                 if cls.__name__ == "LLMClient":

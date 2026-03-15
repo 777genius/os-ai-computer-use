@@ -83,12 +83,10 @@ File: `llm/interfaces.py`
 - `LLMClient.format_tool_result(ToolResult) -> Message` (provider-specific representation)
 
 ### Anthropic Adapter
-File: `llm/adapters_anthropic.py`
+File: `llm_anthropic/adapters_anthropic.py`
 - Maps DTOs to Anthropic `beta.messages.create` inputs, using Computer Use tool
-- Preserves tool_use/tool_result via special marker parts:
-  - `ANTHROPIC_TOOL_USE:[ ... ]`
-  - `ANTHROPIC_TOOL_RESULT:[ ... ]`
-  The adapter expands these markers back into provider-native blocks upon sending
+- Preserves tool_use/tool_result via `ProviderPart(provider="anthropic", ...)` content blocks.
+  The adapter expands ProviderParts back into provider-native blocks upon sending.
 - Adds request timeout (`API_REQUEST_TIMEOUT_SECONDS`) and custom retry/backoff for 429
 - Pretty logs HTTP error bodies (429, etc.), while the orchestrator also handles error surfacing
 

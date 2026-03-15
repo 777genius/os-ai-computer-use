@@ -5,10 +5,12 @@ import logging
 from os_ai_core.di import create_container
 from os_ai_core.utils.logger import setup_logging
 from os_ai_llm.types import ToolDescriptor
+
 from os_ai_core.orchestrator import Orchestrator
-from os_ai_llm_anthropic.config import MODEL_NAME, COMPUTER_TOOL_TYPE
 
 import pyautogui
+
+_COMPUTER_TOOL_TYPES = {"anthropic": "computer_20250124", "openai": "computer"}
 
 
 def main() -> int:
@@ -28,21 +30,22 @@ def main() -> int:
         print("Введите задачу:")
         task_text = sys.stdin.readline().strip()
 
-    inj = create_container(args.provider)
+    provider = args.provider or "anthropic"
+    inj = create_container(provider)
     from os_ai_llm.interfaces import LLMClient
     from os_ai_core.tools.registry import ToolRegistry
     client = inj.get(LLMClient)
     tools = inj.get(ToolRegistry)
     orch = Orchestrator(client, tools)
 
-    # derive model display from screen (simple default). Main package has richer logic; keep basic here.
     screen_w, screen_h = pyautogui.size()
+    tool_type = _COMPUTER_TOOL_TYPES.get(provider, "computer_20250124")
     tool_descs = [
         ToolDescriptor(
             name="computer",
             kind="computer_use",
             params={
-                "type": COMPUTER_TOOL_TYPE,
+                "type": tool_type,
                 "display_width_px": screen_w,
                 "display_height_px": screen_h,
             },
@@ -63,8 +66,8 @@ def main() -> int:
         total_out = getattr(orch, 'total_output_tokens', 0)
         try:
             from os_ai_core.utils.costs import estimate_cost
-            from os_ai_llm_anthropic.config import MODEL_NAME as _MODEL
-            in_cost, out_cost, total_cost, _tier = estimate_cost(_MODEL, int(total_in), int(total_out))
+            model_name = client.get_model_name()
+            in_cost, out_cost, total_cost, _tier = estimate_cost(model_name, int(total_in), int(total_out))
             print(f"\nInterrupted by user (Ctrl+C)\n📈 Usage total in={total_in} out={total_out} cost=${total_cost:.6f} (input=${in_cost:.6f}, output=${out_cost:.6f})")
         except Exception:
             print("\nInterrupted by user (Ctrl+C)")
@@ -82,13 +85,12 @@ def main() -> int:
     if final_texts:
         print("\n".join(final_texts).strip())
 
-    # Print cumulative usage summary
     try:
         total_in = getattr(orch, 'total_input_tokens', 0)
         total_out = getattr(orch, 'total_output_tokens', 0)
         from os_ai_core.utils.costs import estimate_cost
-        from os_ai_llm_anthropic.config import MODEL_NAME as _MODEL
-        in_cost, out_cost, total_cost, _tier = estimate_cost(_MODEL, int(total_in), int(total_out))
+        model_name = client.get_model_name()
+        in_cost, out_cost, total_cost, _tier = estimate_cost(model_name, int(total_in), int(total_out))
         print(f"📈 Usage total in={total_in} out={total_out} cost=${total_cost:.6f} (input=${in_cost:.6f}, output=${out_cost:.6f})")
     except Exception:
         pass
@@ -98,4 +100,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

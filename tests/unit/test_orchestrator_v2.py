@@ -14,7 +14,7 @@ class DummyLLM(LLMClient):
     def __init__(self) -> None:
         self.calls = 0
 
-    def generate(self, messages: List[Message], tools: List[ToolDescriptor], system=None, tool_choice="auto", max_tokens=1024, allow_parallel_tools=True) -> LLMResponse:
+    def generate(self, messages: List[Message], tools: List[ToolDescriptor], system=None, tool_choice="auto", max_tokens=1024, allow_parallel_tools=True, provider_context=None) -> LLMResponse:
         self.calls += 1
         if self.calls == 1:
             # Request a single tool call on first turn

@@ -6,8 +6,6 @@ import injector
 
 from os_ai_llm.config import LLM_PROVIDER
 from os_ai_llm.interfaces import LLMClient
-from os_ai_llm_anthropic.adapters_anthropic import AnthropicClient
-from os_ai_llm_openai.adapters_openai import OpenAIClient
 from os_ai_core.tools.registry import ToolRegistry
 from os_ai_core.tools.computer import computer_tool_handler
 
@@ -20,8 +18,13 @@ class LLMModule(injector.Module):
     @injector.provider
     def provide_llm_client(self) -> LLMClient:  # type: ignore[override]
         if self._provider == "openai":
+            from os_ai_llm_openai.adapters_openai import OpenAIClient
             return OpenAIClient(api_key=self._api_key)
-        return AnthropicClient(api_key=self._api_key)
+        elif self._provider == "anthropic":
+            from os_ai_llm_anthropic.adapters_anthropic import AnthropicClient
+            return AnthropicClient(api_key=self._api_key)
+        else:
+            raise ValueError(f"Unknown LLM provider: '{self._provider}'. Supported: 'anthropic', 'openai'")
 
 
 class ToolsModule(injector.Module):
@@ -34,5 +37,3 @@ class ToolsModule(injector.Module):
 
 def create_container(provider: Optional[str] = None, api_key: Optional[str] = None) -> injector.Injector:
     return injector.Injector([LLMModule(provider, api_key=api_key), ToolsModule()])
-
-

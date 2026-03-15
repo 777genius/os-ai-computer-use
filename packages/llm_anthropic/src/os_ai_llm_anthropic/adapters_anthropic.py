@@ -22,6 +22,7 @@ from os_ai_llm.config import (
 from os_ai_core.config import LOGGER_NAME
 from os_ai_llm.interfaces import LLMClient
 from os_ai_llm.types import (
+    ContentPart,
     Message,
     ToolDescriptor,
     LLMResponse,
@@ -30,6 +31,7 @@ from os_ai_llm.types import (
     TextPart,
     ImagePart,
     ToolCall,
+    ProviderPart,
 )
 
 
@@ -39,44 +41,36 @@ class AnthropicClient(LLMClient):
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set")
         try:
-            # Set global timeout to avoid indefinite hangs at transport level
             self._client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=httpx.Timeout(float(API_REQUEST_TIMEOUT_SECONDS)))  # type: ignore
         except Exception:
             self._client = anthropic.Anthropic(api_key=key)
         self._model = model_name or MODEL_NAME
+
+    def get_model_name(self) -> str:
+        return self._model
+
+    def get_provider_name(self) -> str:
+        return "anthropic"
 
     def _to_provider_messages(self, messages: List[Message]) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         for m in messages:
             blocks: List[Dict[str, Any]] = []
             for p in m.content:
-                if isinstance(p, TextPart):
-                    # Special hook: pass-through provider-native tool_result blocks
-                    if p.text.startswith("ANTHROPIC_TOOL_RESULT:"):
-                        try:
-                            raw = p.text.split(":", 1)[1]
-                            parsed = json.loads(raw)
-                            if isinstance(parsed, list):
-                                blocks.extend(parsed)
-                                continue
-                        except Exception:
-                            pass
-                    # Special hook: pass-through provider-native tool_use blocks
-                    if p.text.startswith("ANTHROPIC_TOOL_USE:"):
-                        try:
-                            raw = p.text.split(":", 1)[1]
-                            parsed = json.loads(raw)
-                            if isinstance(parsed, list):
-                                blocks.extend(parsed)
-                                continue
-                        except Exception:
-                            pass
+                if isinstance(p, ProviderPart) and p.provider == "anthropic":
+                    if isinstance(p.data, list):
+                        blocks.extend(p.data)
+                    elif isinstance(p.data, dict):
+                        blocks.append(p.data)
+                    continue
+                elif isinstance(p, TextPart):
                     blocks.append({"type": "text", "text": p.text})
                 elif isinstance(p, ImagePart):
                     blocks.append({
                         "type": "image",
                         "source": {"type": "base64", "media_type": p.media_type, "data": p.data_base64},
                     })
+                # ProviderPart from other providers — silently skip
             out.append({"role": m.role, "content": blocks})
         return out
 
@@ -84,7 +78,6 @@ class AnthropicClient(LLMClient):
         out: List[Dict[str, Any]] = []
         for t in tools:
             if t.kind == "computer_use":
-                # Anthropic expects a special tool type
                 params = dict(t.params)
                 out.append({
                     "type": params.get("type", COMPUTER_TOOL_TYPE),
@@ -93,7 +86,6 @@ class AnthropicClient(LLMClient):
                     "display_height_px": params.get("display_height_px"),
                 })
             else:
-                # Simple function tool placeholder; extend as needed
                 out.append({"type": "tool", "name": t.name})
         return out
 
@@ -115,11 +107,12 @@ class AnthropicClient(LLMClient):
         tool_choice: str = "auto",
         max_tokens: int = 1024,
         allow_parallel_tools: bool = True,
+        provider_context: Optional[Dict[str, Any]] = None,
     ) -> LLMResponse:
         provider_messages = self._to_provider_messages(messages)
         provider_tools = self._to_provider_tools(tools)
 
-        # Ensure computer tool inputs get default coordinate_space="auto" to match our handler expectations
+        # Ensure computer tool inputs get default coordinate_space="auto"
         patched_messages = []
         for m in provider_messages:
             if m.get("role") == "assistant":
@@ -185,7 +178,6 @@ class AnthropicClient(LLMClient):
                         pass
                     time.sleep(backoff)
                     continue
-                # For other 4xx/5xx errors, pretty log with response body then bubble up
                 try:
                     body = None
                     try:
@@ -202,7 +194,7 @@ class AnthropicClient(LLMClient):
         if resp is None and last_err is not None:
             raise last_err
 
-        # Convert assistant message content, preserving tool_use blocks via special marker
+        # Convert assistant message content — use ProviderPart instead of text markers
         assistant_texts: List[str] = []
         tool_use_blocks: List[Dict[str, Any]] = []
         for b in resp.content:
@@ -217,9 +209,9 @@ class AnthropicClient(LLMClient):
                     "input": getattr(b, "input", {}) or {},
                 })
 
-        assistant_parts: List[TextPart] = [TextPart(text=t) for t in assistant_texts if t]
+        assistant_parts: List[ContentPart] = [TextPart(text=t) for t in assistant_texts if t]
         if tool_use_blocks:
-            assistant_parts.append(TextPart(text="ANTHROPIC_TOOL_USE:" + json.dumps(tool_use_blocks)))
+            assistant_parts.append(ProviderPart(provider="anthropic", sub_type="tool_use", data=tool_use_blocks))
         assistant_msg = Message(role="assistant", content=assistant_parts)
 
         tool_calls = self._parse_tool_calls(resp.content)
@@ -235,10 +227,13 @@ class AnthropicClient(LLMClient):
         except Exception:
             pass
 
-        return LLMResponse(messages=[assistant_msg], tool_calls=tool_calls, usage=Usage(input_tokens=in_tokens, output_tokens=out_tokens, provider_raw={"input_tokens": in_tokens, "output_tokens": out_tokens}))
+        return LLMResponse(
+            messages=[assistant_msg],
+            tool_calls=tool_calls,
+            usage=Usage(input_tokens=in_tokens, output_tokens=out_tokens, provider_raw={"input_tokens": in_tokens, "output_tokens": out_tokens}),
+        )
 
     def format_tool_result(self, result: ToolResult) -> Message:
-        # We return a synthetic user message that contains a provider-native tool_result block.
         blocks: List[Dict[str, Any]] = [
             {
                 "type": "tool_result",
@@ -253,12 +248,11 @@ class AnthropicClient(LLMClient):
                         }
                     )
                     for p in result.content
+                    if isinstance(p, (TextPart, ImagePart))
                 ],
                 "is_error": bool(result.is_error),
             }
         ]
-        # Encode blocks into a special text marker that _to_provider_messages expands back.
-        payload = "ANTHROPIC_TOOL_RESULT:" + json.dumps(blocks)
-        return Message(role="user", content=[TextPart(text=payload)])
-
-
+        return Message(role="user", content=[ProviderPart(
+            provider="anthropic", sub_type="tool_result", data=blocks,
+        )])

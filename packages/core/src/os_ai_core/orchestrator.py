@@ -3,13 +3,11 @@ from __future__ import annotations
 from typing import List, Optional, Callable, Dict, Any
 import logging, json, sys
 import httpx
-import anthropic
 
 from os_ai_llm.interfaces import LLMClient
 from os_ai_llm.types import Message, ToolDescriptor, TextPart, ToolCall, ToolResult, ImagePart
 from os_ai_core.utils.costs import estimate_cost
 from os_ai_core.config import USAGE_LOG_EACH_ITERATION, LOGGER_NAME
-from os_ai_llm_anthropic.config import MODEL_NAME
 from os_ai_core.tools.registry import ToolRegistry
 
 
@@ -29,7 +27,6 @@ class Orchestrator:
     def __init__(self, client: LLMClient, tool_registry: ToolRegistry) -> None:
         self._client = client
         self._tools = tool_registry
-        # Cumulative usage per run; reset at run() start
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
 
@@ -52,7 +49,7 @@ class Orchestrator:
             pass
         messages.append(Message(role="user", content=[TextPart(text=task)]))
         logger = logging.getLogger(LOGGER_NAME)
-        # reset cumulative usage at start
+        provider_context: Optional[Dict[str, Any]] = None
         try:
             self.total_input_tokens = 0
             self.total_output_tokens = 0
@@ -72,31 +69,24 @@ class Orchestrator:
                 except Exception:
                     pass
             try:
-                resp = self._client.generate(messages=messages, tools=tool_descriptors, system=system)
-            except anthropic.RateLimitError as e:  # type: ignore
-                try:
-                    body = getattr(e, "response", None)
-                    if body is not None:
-                        try:
-                            payload = e.response.json()
-                        except Exception:
-                            payload = e.response.text
-                        logger.error(f"HTTP 429 Rate Limit from Anthropic: {payload}")
-                    else:
-                        logger.error(f"HTTP 429 Rate Limit from Anthropic: {e}")
-                except Exception:
-                    logger.error("HTTP 429 Rate Limit from Anthropic")
-                break
+                resp = self._client.generate(
+                    messages=messages,
+                    tools=tool_descriptors,
+                    system=system,
+                    provider_context=provider_context,
+                )
             except httpx.HTTPStatusError as e:
+                status = getattr(e.response, "status_code", None)
+                provider = "provider"
                 try:
-                    status = getattr(e.response, "status_code", None)
-                    try:
-                        payload = e.response.json()
-                    except Exception:
-                        payload = e.response.text
-                    logger.error(f"HTTP {status} from provider: {payload}")
+                    provider = self._client.get_provider_name()
                 except Exception:
-                    logger.error("HTTP error from provider")
+                    pass
+                try:
+                    body = e.response.json()
+                except Exception:
+                    body = e.response.text
+                logger.error(f"HTTP {status} from {provider}: {body}")
                 break
             except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout) as e:
                 logger.error(f"HTTP timeout from provider: {e}")
@@ -105,7 +95,10 @@ class Orchestrator:
                 logger.error(f"Provider error: {e}")
                 break
 
-            # Print assistant texts immediately (stream-like)
+            # Save provider context for next iteration
+            provider_context = resp.provider_context
+
+            # Print assistant texts immediately
             try:
                 for m in resp.messages or []:
                     if getattr(m, "role", None) == "assistant":
@@ -124,7 +117,7 @@ class Orchestrator:
                                 pass
             except Exception:
                 pass
-            # Optional usage/cost logging similar to legacy
+            # Usage/cost logging
             try:
                 inp = int(getattr(resp.usage, "input_tokens", 0) or 0)
                 out = int(getattr(resp.usage, "output_tokens", 0) or 0)
@@ -133,7 +126,6 @@ class Orchestrator:
                     self.total_output_tokens += out
                 except Exception:
                     pass
-                # Notify UI about usage for this iteration
                 if on_event is not None:
                     try:
                         on_event("usage", {
@@ -146,7 +138,11 @@ class Orchestrator:
                     except Exception:
                         pass
                 if USAGE_LOG_EACH_ITERATION:
-                    _in_cost, _out_cost, _total, _tier = estimate_cost(MODEL_NAME, inp, out)
+                    try:
+                        model_name = self._client.get_model_name()
+                    except Exception:
+                        model_name = "unknown"
+                    _in_cost, _out_cost, _total, _tier = estimate_cost(model_name, inp, out)
                     logger.info("📈 Usage iter in=%s out=%s cost=$%.6f (input=$%.6f, output=$%.6f)", inp, out, (_in_cost + _out_cost), _in_cost, _out_cost)
             except Exception:
                 pass
@@ -158,37 +154,36 @@ class Orchestrator:
             if not resp.tool_calls:
                 break
 
-            # Execute tool calls sequentially (parallel later if needed)
+            # Execute tool calls sequentially
             for call in resp.tool_calls:
                 if cancel_token is not None and cancel_token.is_cancelled:
                     break
-                # Notify start of tool call
                 if on_event is not None:
                     try:
                         on_event("tool_call", {"name": call.name, "args": call.args})
                     except Exception:
                         pass
                 result = self._tools.execute(call)
+                # Propagate provider metadata (safety checks, etc.)
+                safety_checks = call.metadata.get("_openai_pending_safety_checks", [])
+                if safety_checks:
+                    result.metadata["_openai_pending_safety_checks"] = safety_checks
                 # Emit result events
                 if on_event is not None:
                     try:
-                        # Summarize result
                         has_image = any(isinstance(p, ImagePart) for p in result.content)
                         if has_image:
                             for p in result.content:
                                 if isinstance(p, ImagePart):
                                     on_event("tool_result_image", {"media_type": p.media_type, "data": p.data_base64})
                         else:
-                            # send first text if present
                             for p in result.content:
                                 if getattr(p, "type", None) == "text" or type(p).__name__ == "TextPart":
                                     on_event("tool_result_text", {"text": getattr(p, "text", "")})
                                     break
                     except Exception:
                         pass
-                # Append tool_result immediately after the assistant tool_use per Anthropic rules
+                # Append formatted tool result to history
                 messages.append(self._client.format_tool_result(result))
 
         return messages
-
-

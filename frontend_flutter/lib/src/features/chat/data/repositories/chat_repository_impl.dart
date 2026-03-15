@@ -163,33 +163,6 @@ class ChatRepositoryImpl implements ChatRepository {
           ));
           return;
         }
-        // Fallback: планы Anthropic в логах
-        if (msg.startsWith('ANTHROPIC_TOOL_USE:')) {
-          try {
-            final raw = msg.substring('ANTHROPIC_TOOL_USE:'.length);
-            final parsed = jsonDecode(raw);
-            if (parsed is List) {
-              for (final b in parsed) {
-                String? name;
-                Map<String, dynamic>? input;
-                if (b is Map) {
-                  name = b['name'] as String?;
-                  final i = b['input'];
-                  if (i is Map) input = i.cast<String, dynamic>();
-                }
-                _msgCtrl.add(ChatMessage(
-                  id: _nextId(),
-                  role: 'assistant',
-                  ts: DateTime.now(),
-                  kind: 'action',
-                  text: _formatPlannedActionText(name, input),
-                  meta: {'name': name, 'status': 'plan', 'meta': input},
-                ));
-              }
-              return;
-            }
-          } catch (_) {}
-        }
         final cmThought = ChatMessage(
           id: _nextId(),
           role: 'assistant',

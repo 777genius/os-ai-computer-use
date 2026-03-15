@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from os_ai_core.tools.registry import ToolRegistry
+from os_ai_llm.types import ToolCall
 
 
 def test_tools_registry_normalizes_text_and_image_blocks():
@@ -14,7 +15,7 @@ def test_tools_registry_normalizes_text_and_image_blocks():
 
     reg.register("computer", handler)
 
-    call = type("Call", (), {"id": "1", "name": "computer", "args": {}})()  # simple stub
+    call = ToolCall(id="1", name="computer", args={})
     res = reg.execute(call)
 
     assert res.tool_call_id == "1"

@@ -21,7 +21,8 @@ from os_ai_core.tools.registry import ToolRegistry
 
 import pyautogui
 
-from os_ai_llm_anthropic.config import COMPUTER_TOOL_TYPE
+_COMPUTER_TOOL_TYPES = {"anthropic": "computer_20250124", "openai": "computer"}
+_PROVIDER_DISPLAY = {"anthropic": "Anthropic", "openai": "OpenAI"}
 from .jobs import jobs, Job
 from .metrics import metrics
 
@@ -45,7 +46,11 @@ class WebSocketRPCHandler:
         # Extract API key from WebSocket query parameters (sent by frontend)
         # Store in local variable to avoid race conditions between concurrent connections
         query_params = websocket.query_params
-        api_key = query_params.get('anthropic_api_key')
+        api_key = (
+            query_params.get('api_key')
+            or query_params.get('anthropic_api_key')
+            or query_params.get('openai_api_key')
+        )
 
         if api_key:
             self._logger.info("API key provided via WebSocket query params")
@@ -72,6 +77,7 @@ class WebSocketRPCHandler:
 
                 if method == "session.create":
                     provider = params.get("provider")
+                    provider_display = _PROVIDER_DISPLAY.get(provider or "anthropic", (provider or "anthropic").title())
                     try:
                         session_id, client, tools = self._create_session(provider, api_key=api_key)
                         self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
@@ -82,13 +88,14 @@ class WebSocketRPCHandler:
                     except RuntimeError as e:
                         self._logger.warning("session.create failed: %s", str(e))
                         await self._send_error(websocket, req_id, -32000,
-                            "API key required. Please configure your Anthropic API key in Settings.")
+                            f"API key required. Please configure your {provider_display} API key in Settings.")
                 elif method == "agent.run":
                     task_text = params.get("task") or ""
                     if not task_text:
                         await self._send_error(websocket, req_id, -32602, "Missing 'task'")
                         continue
                     provider = params.get("provider")
+                    provider_display = _PROVIDER_DISPLAY.get(provider or "anthropic", (provider or "anthropic").title())
                     max_iterations = int(params.get("maxIterations", 30))
                     initial_messages = params.get("context") or []
                     attachments = params.get("attachments") or []
@@ -99,7 +106,7 @@ class WebSocketRPCHandler:
                     except RuntimeError as e:
                         self._logger.warning("agent.run failed: %s", str(e))
                         await self._send_error(websocket, req_id, -32000,
-                            "API key required. Please configure your Anthropic API key in Settings.")
+                            f"API key required. Please configure your {provider_display} API key in Settings.")
                         continue
 
                     job_id = str(uuid.uuid4())
@@ -120,6 +127,7 @@ class WebSocketRPCHandler:
                         cancel=cancel_token,
                         initial_messages=initial_messages,
                         attachments=attachments,
+                        provider=provider,
                     ))
                     # job started asynchronously
                 elif method == "agent.cancel":
@@ -153,14 +161,16 @@ class WebSocketRPCHandler:
         cancel: CancelToken,
         initial_messages: list | None = None,
         attachments: list | None = None,
+        provider: str | None = None,
     ) -> None:
+        _provider = provider or "anthropic"
         screen_w, screen_h = pyautogui.size()
         tool_descs = [
             ToolDescriptor(
                 name="computer",
                 kind="computer_use",
                 params={
-                    "type": COMPUTER_TOOL_TYPE,
+                    "type": _COMPUTER_TOOL_TYPES.get(_provider, "computer_20250124"),
                     "display_width_px": screen_w,
                     "display_height_px": screen_h,
                 },
@@ -238,8 +248,9 @@ class WebSocketRPCHandler:
             except httpx.HTTPStatusError as e:
                 # Check for authentication/authorization errors
                 if e.response.status_code in (401, 403):
+                    _pd = _PROVIDER_DISPLAY.get(_provider, _provider.title())
                     raise RuntimeError(
-                        "Invalid or expired API key. Please check your Anthropic API key in Settings and ensure it is valid."
+                        f"Invalid or expired API key. Please check your {_pd} API key in Settings and ensure it is valid."
                     ) from e
                 raise  # Re-raise other HTTP errors
 
