@@ -5,6 +5,53 @@ All notable changes to OS AI Computer Use will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-15
+
+### Added
+
+#### Multi-LLM Provider Support
+- **OpenAI GPT Computer Use adapter** via Responses API
+  - Full integration with OpenAI's computer_use_preview tool
+  - Action converter for OpenAI-specific action format
+  - Batch action support for sequential OpenAI actions
+- **Provider-agnostic core architecture**
+  - Refactored core to support multiple LLM providers
+  - `LLM_PROVIDER` env var to select active provider (anthropic/openai)
+  - DRY: consolidated `COMPUTER_TOOL_TYPES` into single config
+- **Provider selector UI in Flutter**
+  - First-run dialog with per-provider setup instructions
+  - Provider selection dropdown with API key validation
+  - Disable send button when API key missing for active provider
+- **OS context in system prompt** — OS name and version included for better AI awareness
+
+#### Flutter UI Improvements
+- macOS native blur (NSVisualEffectView) behind transparent window
+- In-memory storage fallback for unsupported platforms
+- Improved theme with reduced alpha for transparency effect
+
+### Fixed
+
+#### Cross-Platform Key Mapping
+- `cmd`/`command` now maps to `win` on Windows/Linux (was always `command`)
+- `alt` now maps to `alt` on Windows/Linux (was always `option`)
+- `Meta` key correctly mapped per platform in system prompt
+- Module-level `press_enter_mac` for proper test monkeypatching (CI fix)
+
+#### Input Handling
+- Scroll direction was inverted — fixed
+- Back/forward mouse buttons now warn instead of wrong click
+- Wheel/back/forward click buttons mapped correctly
+- Multi-point drag path preserved (was losing intermediate points)
+
+#### Backend Stability
+- Fallback with warning when `input_data` is empty
+- Plain string fallback + debug logging for OpenAI requests
+- `output_text` used for assistant messages in OpenAI Responses API
+- Guard `resp.output` against `None` in OpenAI adapter
+- `__main__.py` added to backend and CLI packages for `python -m` support
+
+---
+
 ## [1.0.3] - 2025-10-26
 
 ### Fixed
