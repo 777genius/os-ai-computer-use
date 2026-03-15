@@ -2,6 +2,9 @@ import importlib.util
 import sys
 from pathlib import Path
 
+_IS_MAC = sys.platform == "darwin"
+_META = "command" if _IS_MAC else "win"
+
 
 def _load_main():
     proj_root = Path(__file__).resolve().parents[2]
@@ -34,7 +37,7 @@ def test_key_cmd_space_hotkey(monkeypatch):
 
     res = main.handle_computer_action("key", {"key": "cmd+space"})
 
-    assert calls["hotkey"] == [("command", "space")]
+    assert calls["hotkey"] == [(_META, "space")]
     assert calls["press"] == []
     assert any("pressed" in c.get("text", "") for c in res)
 
@@ -59,8 +62,7 @@ def test_hold_key_cmd_k_order(monkeypatch):
 
     main.handle_computer_action("hold_key", {"key": "cmd+k"})
 
-    # Expect: command down -> press 'k' -> command up
-    assert order == [("down", "command"), ("press", "k"), ("up", "command")]
+    assert order == [("down", _META), ("press", "k"), ("up", _META)]
 
 
 def test_enter_uses_press_enter_mac(monkeypatch):

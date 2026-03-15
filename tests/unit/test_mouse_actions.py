@@ -4,6 +4,10 @@ from pathlib import Path
 
 import pytest
 
+_IS_MAC = sys.platform == "darwin"
+_META = "command" if _IS_MAC else "win"
+_ALT = "option" if _IS_MAC else "alt"
+
 
 def _load_main():
     proj_root = Path(__file__).resolve().parents[2]
@@ -21,8 +25,8 @@ def _load_main():
     "mods_str,expected",
     [
         ("shift", ["shift"]),
-        ("cmd+shift", ["command", "shift"]),
-        ("ctrl+alt", ["ctrl", "option"]),
+        ("cmd+shift", [_META, "shift"]),
+        ("ctrl+alt", ["ctrl", _ALT]),
     ],
 )
 def test_click_with_modifiers(monkeypatch, mods_str, expected):
