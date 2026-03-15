@@ -94,6 +94,9 @@ def openai_action_to_internal(action: Dict[str, Any]) -> Dict[str, Any]:
             "left": "left_click",
             "right": "right_click",
             "middle": "middle_click",
+            "wheel": "middle_click",
+            "back": "left_click",
+            "forward": "left_click",
         }.get(button, "left_click")
         return {"action": action_name, "coordinate": [x, y]}
 
