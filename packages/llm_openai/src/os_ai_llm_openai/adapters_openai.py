@@ -243,7 +243,9 @@ class OpenAIClient(LLMClient):
             input_data = self._build_initial_input(messages, system)
 
         if not input_data:
-            input_data = "Continue."
+            logger.warning("OpenAI input_data is empty — this likely indicates a bug in message building. "
+                           "Messages count: %d, previous_response_id: %s", len(messages), previous_response_id)
+            input_data = [{"role": "user", "content": [{"type": "input_text", "text": "Continue."}]}]
 
         kwargs: Dict[str, Any] = {
             "model": self._model,
