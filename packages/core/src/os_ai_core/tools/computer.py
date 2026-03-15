@@ -38,6 +38,15 @@ from os_ai_os.config import PREMOVE_HIGHLIGHT_DEFAULT_DURATION
 from os_ai_os.api import get_drivers
 
 
+def press_enter_mac():
+    """Press Enter via platform-native Quartz helper, falling back to pyautogui."""
+    try:
+        from os_ai_os_macos.keyboard import press_enter_mac as _pem
+        _pem()
+    except Exception:
+        pyautogui.press("enter")
+
+
 # Initialize PyAutoGUI basic settings
 pyautogui.PAUSE = PYAUTO_PAUSE_SECONDS
 pyautogui.FAILSAFE = PYAUTO_FAILSAFE
@@ -598,11 +607,7 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                     pyautogui.keyUp(k)
         else:
             if len(norm_keys) == 1 and norm_keys[0] in ("enter", "return"):
-                try:
-                    from os_ai_os_macos.keyboard import press_enter_mac
-                    press_enter_mac()
-                except Exception:
-                    pyautogui.press("enter")
+                press_enter_mac()
             else:
                 if len(norm_keys) == 1:
                     pyautogui.press(norm_keys[0])
@@ -615,11 +620,7 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                         count = len(norm_keys)
                         for _ in range(count):
                             if key in ("enter",):
-                                try:
-                                    from os_ai_os_macos.keyboard import press_enter_mac
-                                    press_enter_mac()
-                                except Exception:
-                                    pyautogui.press("enter")
+                                press_enter_mac()
                             else:
                                 pyautogui.press(key)
                         pressed_label = f"{key} x{count}"
