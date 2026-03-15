@@ -59,6 +59,8 @@ abstract class _ChatStore with Store {
         _usageChatId = activeChatId;
         _messageChatId = activeChatId;
       } else {
+        // Fallback: remove any leftover Thinking... bubbles across all chats
+        _removeThinkingMessages();
         _messageChatId = null;
         _usageChatId = null;
       }
@@ -231,6 +233,20 @@ abstract class _ChatStore with Store {
     list.add(item);
     if (chatId == activeChatId && messages != list) {
       messages = list;
+    }
+  }
+
+  /// Remove all Thinking... placeholders from all chats (fallback cleanup)
+  void _removeThinkingMessages() {
+    for (final entry in _messagesByChat.entries) {
+      final list = entry.value;
+      final removed = list.any((e) => (e.meta?['thinking'] as bool?) == true);
+      if (removed) {
+        list.removeWhere((e) => (e.meta?['thinking'] as bool?) == true);
+        if (entry.key == activeChatId && messages != list) {
+          messages = list;
+        }
+      }
     }
   }
 

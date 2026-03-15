@@ -243,20 +243,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildHelpCard(String title, List<Widget> children) {
     return Card(
-      color: Colors.blue.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            ...children,
-          ],
+      color: Theme.of(context).colorScheme.primaryContainer,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: false,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
+        childrenPadding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+        iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        collapsedIconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
         ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -268,12 +280,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 4.0),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: Colors.blue),
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               text,
-              style: const TextStyle(
-                color: Colors.blue,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
                 decoration: TextDecoration.underline,
               ),
             ),
@@ -340,7 +352,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
                   'Please enter the API key for the selected provider above.',
-                  style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
                 ),
               ),
           ],
@@ -400,18 +412,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSecurityNotice() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
-      color: Colors.green.shade50,
+      color: isDark ? const Color(0xFF1A2E1A) : Colors.green.shade50,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            const Icon(Icons.lock, color: Colors.green),
+            Icon(Icons.lock, color: isDark ? const Color(0xFF81C784) : Colors.green),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'Your API keys are securely stored in your system keychain and never leave your device.',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ],

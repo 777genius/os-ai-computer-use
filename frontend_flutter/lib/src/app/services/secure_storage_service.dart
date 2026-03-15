@@ -1,15 +1,14 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 
-/// Service for securely storing sensitive data like API keys
-/// Uses platform-specific secure storage:
-/// - macOS: Keychain
-/// - Windows: Credential Manager
-/// - Linux: libsecret
-/// - Web: Encrypted localStorage
+/// Temporary in-memory storage for API keys and settings.
+///
+/// TODO: Replace with persistent secure storage (Keychain / flutter_secure_storage)
+/// once macOS code signing with DEVELOPMENT_TEAM is fully resolved.
+/// Current issue: Keychain returns -34018 even with entitlements + DEVELOPMENT_TEAM
+/// configured. Data is lost when the app restarts.
 @lazySingleton
 class SecureStorageService {
-  final FlutterSecureStorage _storage;
+  final Map<String, String> _store = {};
 
   // Storage keys
   static const String _anthropicApiKeyKey = 'anthropic_api_key';
@@ -17,100 +16,74 @@ class SecureStorageService {
   static const String _hasCompletedSetupKey = 'has_completed_setup';
   static const String _activeProviderKey = 'active_provider';
 
-  SecureStorageService()
-      : _storage = const FlutterSecureStorage(
-          aOptions: AndroidOptions(
-            encryptedSharedPreferences: true,
-          ),
-          iOptions: IOSOptions(
-            accessibility: KeychainAccessibility.first_unlock,
-          ),
-        );
-
   // Anthropic API Key methods
 
-  /// Save Anthropic API key securely
   Future<void> saveAnthropicApiKey(String apiKey) async {
-    await _storage.write(key: _anthropicApiKeyKey, value: apiKey);
+    _store[_anthropicApiKeyKey] = apiKey;
   }
 
-  /// Get Anthropic API key
   Future<String?> getAnthropicApiKey() async {
-    return await _storage.read(key: _anthropicApiKeyKey);
+    return _store[_anthropicApiKeyKey];
   }
 
-  /// Check if Anthropic API key exists
   Future<bool> hasAnthropicApiKey() async {
     final key = await getAnthropicApiKey();
     return key != null && key.isNotEmpty;
   }
 
-  /// Delete Anthropic API key
   Future<void> deleteAnthropicApiKey() async {
-    await _storage.delete(key: _anthropicApiKeyKey);
+    _store.remove(_anthropicApiKeyKey);
   }
 
   // OpenAI API Key methods
 
-  /// Save OpenAI API key securely
   Future<void> saveOpenAIApiKey(String apiKey) async {
-    await _storage.write(key: _openaiApiKeyKey, value: apiKey);
+    _store[_openaiApiKeyKey] = apiKey;
   }
 
-  /// Get OpenAI API key
   Future<String?> getOpenAIApiKey() async {
-    return await _storage.read(key: _openaiApiKeyKey);
+    return _store[_openaiApiKeyKey];
   }
 
-  /// Check if OpenAI API key exists
   Future<bool> hasOpenAIApiKey() async {
     final key = await getOpenAIApiKey();
     return key != null && key.isNotEmpty;
   }
 
-  /// Delete OpenAI API key
   Future<void> deleteOpenAIApiKey() async {
-    await _storage.delete(key: _openaiApiKeyKey);
+    _store.remove(_openaiApiKeyKey);
   }
 
   // Active provider selection
 
   Future<void> saveActiveProvider(String provider) async {
-    await _storage.write(key: _activeProviderKey, value: provider);
+    _store[_activeProviderKey] = provider;
   }
 
   Future<String?> getActiveProvider() async {
-    return await _storage.read(key: _activeProviderKey);
+    return _store[_activeProviderKey];
   }
 
   // Setup tracking
 
-  /// Mark that user has completed initial setup
   Future<void> markSetupComplete() async {
-    await _storage.write(key: _hasCompletedSetupKey, value: 'true');
+    _store[_hasCompletedSetupKey] = 'true';
   }
 
-  /// Check if user has completed initial setup
   Future<bool> hasCompletedSetup() async {
-    final value = await _storage.read(key: _hasCompletedSetupKey);
-    return value == 'true';
+    return _store[_hasCompletedSetupKey] == 'true';
   }
 
   // Utility methods
 
-  /// Clear all stored data (useful for logout/reset)
   Future<void> clearAll() async {
-    await _storage.deleteAll();
+    _store.clear();
   }
 
-  /// Get all API keys at once for initialization
   Future<Map<String, String?>> getAllApiKeys() async {
-    final anthropicKey = await getAnthropicApiKey();
-    final openaiKey = await getOpenAIApiKey();
-
     return {
-      'anthropic': anthropicKey,
-      'openai': openaiKey,
+      'anthropic': _store[_anthropicApiKeyKey],
+      'openai': _store[_openaiApiKeyKey],
     };
   }
 }

@@ -327,6 +327,17 @@ class ChatRepositoryImpl implements ChatRepository {
       _pendingJobs[id] = _activeChatId!;
     }
     _msgCtrl.add(ChatMessage(id: _nextId(), role: 'user', ts: DateTime.now(), kind: 'text', text: task));
+    // Remove existing thinking bubble if any (prevents duplicates)
+    if (_thinkingMsgId != null) {
+      _msgCtrl.add(ChatMessage(
+        id: _nextId(),
+        role: 'assistant',
+        ts: DateTime.now(),
+        kind: 'control',
+        text: null,
+        meta: {'removeMessageId': _thinkingMsgId},
+      ));
+    }
     _thinkingMsgId = _nextId();
     _msgCtrl.add(ChatMessage(id: _thinkingMsgId!, role: 'assistant', ts: DateTime.now(), kind: 'thought', text: 'Thinking...', meta: const {'thinking': true}));
     _runningCtrl.add(true);

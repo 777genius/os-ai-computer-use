@@ -24,8 +24,10 @@ class ApiKeyValidator {
   // Anthropic API keys start with sk-ant- and contain specific characters
   static final _anthropicRegex = RegExp(r'^sk-ant-[a-zA-Z0-9_-]{95,}$');
 
-  // OpenAI API keys start with sk- and contain specific characters
-  static final _openaiRegex = RegExp(r'^sk-[a-zA-Z0-9]{32,}$');
+  // OpenAI API keys: sk-<key>, sk-proj-<key>, sk-svcacct-<key>, etc.
+  // Negative lookahead (?!ant-) excludes Anthropic keys (sk-ant-...).
+  // Keys contain alphanumeric chars, dashes and underscores; length varies (40-200+).
+  static final _openaiRegex = RegExp(r'^sk-(?!ant-)[a-zA-Z0-9_-]{20,}$');
 
   /// Validate any API key and determine its provider
   ValidationResult validate(String apiKey, {ApiProvider? expectedProvider}) {
@@ -117,7 +119,7 @@ class ApiKeyValidator {
         return 'Anthropic API keys start with "sk-ant-" and are about 100 characters long. '
             'Get your key from https://console.anthropic.com/';
       case ApiProvider.openai:
-        return 'OpenAI API keys start with "sk-" and are about 50 characters long. '
+        return 'OpenAI API keys start with "sk-" and are typically 40-200 characters long. '
             'Get your key from https://platform.openai.com/api-keys';
     }
   }

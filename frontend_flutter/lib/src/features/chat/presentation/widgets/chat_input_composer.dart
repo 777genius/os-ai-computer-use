@@ -63,6 +63,8 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
     final txt = controller.text.trim();
     final store = context.read<ChatStore?>();
     if (txt.isEmpty || store == null) return;
+    // Prevent double-send while already running
+    if (store.running) return;
     await store.sendTask(txt);
     controller.clear();
     focusNode.requestFocus();

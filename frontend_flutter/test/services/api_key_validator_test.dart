@@ -46,6 +46,27 @@ void main() {
         expect(result.error, isNull);
       });
 
+      test('should accept sk-proj- format key with dashes and underscores', () {
+        final validKey = 'sk-proj-xoUa0YF4yXIEcVHE5eGsESFSG9EFq3tCl-N0ke6lkA';
+        final result = validator.validateOpenAIKey(validKey);
+        expect(result.isValid, true);
+        expect(result.error, isNull);
+      });
+
+      test('should accept sk-svcacct- format key', () {
+        final validKey = 'sk-svcacct-' + 'a1b2c3d4e5f6g7h8' * 3;
+        final result = validator.validateOpenAIKey(validKey);
+        expect(result.isValid, true);
+        expect(result.error, isNull);
+      });
+
+      test('should accept long sk-proj- keys', () {
+        final validKey = 'sk-proj-' + 'abcDEF012345_-' * 10;
+        final result = validator.validateOpenAIKey(validKey);
+        expect(result.isValid, true);
+        expect(result.error, isNull);
+      });
+
       test('should reject empty OpenAI API key', () {
         final result = validator.validateOpenAIKey('');
         expect(result.isValid, false);
@@ -56,6 +77,17 @@ void main() {
         final result = validator.validateOpenAIKey('invalid-key');
         expect(result.isValid, false);
         expect(result.error, contains('sk-'));
+      });
+
+      test('should reject too short OpenAI API key', () {
+        final result = validator.validateOpenAIKey('sk-short');
+        expect(result.isValid, false);
+      });
+
+      test('should not accept Anthropic key as valid OpenAI key', () {
+        final anthropicKey = 'sk-ant-' + 'a' * 95;
+        final result = validator.validateOpenAIKey(anthropicKey);
+        expect(result.isValid, false);
       });
     });
 
@@ -70,6 +102,19 @@ void main() {
         final validKey = 'sk-' + 'a' * 32;
         final provider = validator.detectProvider(validKey);
         expect(provider, ApiProvider.openai);
+      });
+
+      test('should detect OpenAI provider for sk-proj- key', () {
+        final validKey = 'sk-proj-xoUa0YF4yXIEcVHE5eGsESFSG9EFq3tCl-N0ke6lkA';
+        final provider = validator.detectProvider(validKey);
+        expect(provider, ApiProvider.openai);
+      });
+
+      test('should not detect Anthropic key as OpenAI provider', () {
+        // Short Anthropic-prefix key that fails _anthropicRegex but should NOT match _openaiRegex
+        final shortAnthropicKey = 'sk-ant-' + 'a' * 30;
+        final provider = validator.detectProvider(shortAnthropicKey);
+        expect(provider, isNot(ApiProvider.openai));
       });
 
       test('should return null for invalid key', () {

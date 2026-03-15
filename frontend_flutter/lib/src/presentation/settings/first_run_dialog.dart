@@ -17,7 +17,7 @@ class FirstRunDialog extends StatefulWidget {
 class _FirstRunDialogState extends State<FirstRunDialog> {
   final _formKey = GlobalKey<FormState>();
   final _storage = GetIt.I<SecureStorageService>();
-  String _selectedProvider = 'anthropic';
+  String _selectedProvider = 'openai';
   String _anthropicKey = '';
   String _openaiKey = '';
   bool _isLoading = false;
@@ -74,7 +74,7 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.smart_toy, size: 64, color: Colors.blue),
+                Icon(Icons.smart_toy, size: 64, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(height: 16),
 
                 Text(
@@ -103,38 +103,61 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
 
                 // Info card — changes based on provider
                 Card(
-                  color: Colors.blue.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Need an API key?', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Text(isAnthropic ? '1. Visit console.anthropic.com' : '1. Visit platform.openai.com'),
-                        const Text('2. Sign up or log in'),
-                        const Text('3. Create a new API key'),
-                        const Text('4. Copy and paste it below'),
-                        const SizedBox(height: 12),
-                        InkWell(
-                          onTap: () => _launchUrl(
-                            isAnthropic
-                                ? 'https://console.anthropic.com/'
-                                : 'https://platform.openai.com/api-keys',
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.launch, size: 16, color: Colors.blue),
-                              const SizedBox(width: 4),
-                              Text(
-                                isAnthropic ? 'Open Anthropic Console' : 'Open OpenAI Platform',
-                                style: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  clipBehavior: Clip.antiAlias,
+                  child: ExpansionTile(
+                    initiallyExpanded: false,
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    childrenPadding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                    iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                    collapsedIconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                    title: Text(
+                      'Need an API key?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
                     ),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isAnthropic ? '1. Visit console.anthropic.com' : '1. Visit platform.openai.com',
+                              style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer),
+                            ),
+                            Text('2. Sign up or log in', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                            Text('3. Create a new API key', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                            Text('4. Copy and paste it below', style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                            const SizedBox(height: 12),
+                            InkWell(
+                              onTap: () => _launchUrl(
+                                isAnthropic
+                                    ? 'https://console.anthropic.com/'
+                                    : 'https://platform.openai.com/api-keys',
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.launch, size: 16, color: Theme.of(context).colorScheme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isAnthropic ? 'Open Anthropic Console' : 'Open OpenAI Platform',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -161,7 +184,7 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                 // Security notice
                 Row(
                   children: [
-                    const Icon(Icons.lock, size: 16, color: Colors.green),
+                    Icon(Icons.lock, size: 16, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

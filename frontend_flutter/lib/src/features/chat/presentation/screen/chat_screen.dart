@@ -1,20 +1,23 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_messages_list.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:provider/provider.dart';
+
+import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
+import 'package:frontend_flutter/src/features/chat/domain/entities/connection_status.dart';
+import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
+import 'package:frontend_flutter/src/features/chat/presentation/utils/image_compress.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_input_composer.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_list_sidebar.dart';
-import 'package:provider/provider.dart';
-import 'package:frontend_flutter/src/presentation/utils/drop_target.dart';
+import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_messages_list.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/upload_overlay.dart';
-import 'package:frontend_flutter/src/features/chat/presentation/utils/image_compress.dart';
-import 'dart:typed_data';
-import 'dart:io';
-import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
+import 'package:frontend_flutter/src/features/usage/presentation/usage_screen.dart';
 import 'package:frontend_flutter/src/presentation/stores/theme_store.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
-import 'package:frontend_flutter/src/features/chat/domain/entities/connection_status.dart';
-import 'package:frontend_flutter/src/features/usage/presentation/usage_screen.dart';
+import 'package:frontend_flutter/src/presentation/utils/drop_target.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -35,11 +38,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // On macOS with fullSizeContentView, reserve space for traffic light buttons
+    final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+    final trafficLightPadding = isMacOS ? 78.0 : 16.0;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
         surfaceTintColor: Colors.transparent,
+        titleSpacing: trafficLightPadding,
         title: Observer(builder: (_) {
           final storeWatch = context.watch<ChatStore?>();
           final u = storeWatch?.usage;
