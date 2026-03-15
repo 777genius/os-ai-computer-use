@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:frontend_flutter/src/app/config/app_config.dart';
 import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
 import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/utils/image_compress.dart';
@@ -42,6 +43,20 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
     controller.dispose();
     focusNode.dispose();
     super.dispose();
+  }
+
+  bool get _hasApiKey {
+    final cfg = context.read<AppConfig>();
+    if (cfg.activeProvider == 'openai') {
+      return cfg.openaiApiKey != null && cfg.openaiApiKey!.isNotEmpty;
+    }
+    return cfg.anthropicApiKey != null && cfg.anthropicApiKey!.isNotEmpty;
+  }
+
+  String get _missingKeyMessage {
+    final cfg = context.read<AppConfig>();
+    final name = cfg.activeProvider == 'openai' ? 'OpenAI' : 'Anthropic';
+    return 'Enter your $name API key in Settings first';
   }
 
   Future<void> _sendMessage() async {
@@ -198,22 +213,29 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                         tooltip: 'Stop generation',
                       );
                     } else if (hasText) {
+                      final keyOk = _hasApiKey;
                       // Send button when there's text
-                      return IconButton(
-                        onPressed: _sendMessage,
-                        icon: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.arrow_upward_rounded,
-                            color: colorScheme.onPrimary,
-                            size: 20,
+                      return Tooltip(
+                        message: keyOk ? 'Send message' : _missingKeyMessage,
+                        child: IconButton(
+                          onPressed: keyOk ? _sendMessage : null,
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: keyOk
+                                  ? colorScheme.primary
+                                  : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.arrow_upward_rounded,
+                              color: keyOk
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurfaceVariant,
+                              size: 20,
+                            ),
                           ),
                         ),
-                        tooltip: 'Send message',
                       );
                     } else {
                       // Microphone button (placeholder) when no text
