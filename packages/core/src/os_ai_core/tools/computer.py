@@ -458,6 +458,7 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
     if action == "left_click_drag":
         start = params.get("start") or params.get("from") or params.get("source") or params.get("start_coordinate") or params.get("from_coordinate")
         end = params.get("end") or params.get("to") or params.get("target") or params.get("end_coordinate") or params.get("to_coordinate")
+        full_path = params.get("path")  # list of [x, y] points for multi-point drag
         if not (start and end):
             return [{"type": "text", "text": "drag skipped: missing start/end"}]
         coord_space = params.get("coordinate_space")
@@ -478,7 +479,15 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
             def _do_drag():
                 time.sleep(max(0.0, hold_before_ms / 1000.0))
                 pyautogui.mouseDown(button="left")
-                if steps <= 1:
+                if full_path and len(full_path) > 2:
+                    # Multi-point path: follow all intermediate points for smooth curves
+                    for pt in full_path[1:]:
+                        px, py = _to_screen_xy(int(pt[0]), int(pt[1]), coordinate_space=coord_space)
+                        step_dur = _compute_duration_to(px, py, params, default=0.02, speed_pps=DEFAULT_DRAG_SPEED_PPS)
+                        pyautogui.moveTo(px, py, duration=step_dur, tween=tween_fn)
+                        if step_delay > 0:
+                            time.sleep(step_delay)
+                elif steps <= 1:
                     drag_dur = _compute_duration_to(x2, y2, params, default=0.40, speed_pps=DEFAULT_DRAG_SPEED_PPS)
                     pyautogui.moveTo(x2, y2, duration=drag_dur, tween=tween_fn)
                 else:

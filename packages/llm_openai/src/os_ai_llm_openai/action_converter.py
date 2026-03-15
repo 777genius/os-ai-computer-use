@@ -126,10 +126,16 @@ def openai_action_to_internal(action: Dict[str, Any]) -> Dict[str, Any]:
         if len(path) >= 2:
             start = path[0]
             end = path[-1]
+            # Pass full path as intermediate points for smooth drawing
+            full_path = [
+                [_extract_coord(pt, "x"), _extract_coord(pt, "y")]
+                for pt in path
+            ]
             return {
                 "action": "left_click_drag",
                 "start_coordinate": [_extract_coord(start, "x"), _extract_coord(start, "y")],
                 "end_coordinate": [_extract_coord(end, "x"), _extract_coord(end, "y")],
+                "path": full_path,
             }
         _LOGGER.warning("Drag with path < 2 points, fallback to screenshot")
         return {"action": "screenshot"}
