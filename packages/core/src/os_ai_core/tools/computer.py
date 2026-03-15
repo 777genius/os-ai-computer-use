@@ -590,6 +590,7 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
         else:
             if len(norm_keys) == 1 and norm_keys[0] in ("enter", "return"):
                 try:
+                    from os_ai_os_macos.keyboard import press_enter_mac
                     press_enter_mac()
                 except Exception:
                     pyautogui.press("enter")
@@ -606,6 +607,7 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                         for _ in range(count):
                             if key in ("enter",):
                                 try:
+                                    from os_ai_os_macos.keyboard import press_enter_mac
                                     press_enter_mac()
                                 except Exception:
                                     pyautogui.press("enter")
