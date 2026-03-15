@@ -122,7 +122,7 @@ class OpenAIClient(LLMClient):
         assistant_parts: List[Any] = []
         tool_calls: List[ToolCall] = []
 
-        for item in resp.output:
+        for item in (resp.output or []):
             item_type = getattr(item, "type", "")
 
             if item_type == "message":
