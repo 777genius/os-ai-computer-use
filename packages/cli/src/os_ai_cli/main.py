@@ -10,7 +10,7 @@ from os_ai_core.orchestrator import Orchestrator
 
 import pyautogui
 
-_COMPUTER_TOOL_TYPES = {"anthropic": "computer_20250124", "openai": "computer"}
+from os_ai_llm.config import COMPUTER_TOOL_TYPES as _COMPUTER_TOOL_TYPES
 
 
 def main() -> int:
