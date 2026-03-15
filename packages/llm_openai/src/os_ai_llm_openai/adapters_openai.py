@@ -68,10 +68,13 @@ class OpenAIClient(LLMClient):
             if m.role == "system":
                 continue  # system goes to 'instructions' parameter
 
+            # Content type depends on role: user→input_text, assistant→output_text
+            text_type = "output_text" if m.role == "assistant" else "input_text"
+
             parts: List[Dict[str, Any]] = []
             for p in m.content:
                 if isinstance(p, TextPart):
-                    parts.append({"type": "input_text", "text": p.text})
+                    parts.append({"type": text_type, "text": p.text})
                 elif isinstance(p, ImagePart):
                     data_uri = f"data:{p.media_type};base64,{p.data_base64}"
                     parts.append({
