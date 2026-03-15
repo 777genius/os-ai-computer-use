@@ -21,8 +21,19 @@ class ToolRegistry:
                 is_error=True,
             )
 
-        # Our legacy handler returns Anthropic-style content blocks (dicts). Normalize to ContentPart.
-        raw_blocks = handler(call.args)
+        # Merge metadata into args so batch handler can access _openai_batch, _openai_actions
+        merged_args = {**call.args, **call.metadata} if call.metadata else call.args
+
+        try:
+            raw_blocks = handler(merged_args)
+        except Exception as e:
+            return ToolResult(
+                tool_call_id=call.id,
+                content=[TextPart(text=f"error: {e}")],
+                is_error=True,
+            )
+
+        # Normalize handler output (Anthropic-style content blocks) to ContentPart
         parts = []
         for b in raw_blocks or []:
             btype = b.get("type") if isinstance(b, dict) else None
@@ -37,5 +48,3 @@ class ToolRegistry:
                 parts.append(TextPart(text=str(b)))
 
         return ToolResult(tool_call_id=call.id, content=parts, is_error=False)
-
-

@@ -10,6 +10,8 @@ classifiers = [
 
 dependencies = [
   "os_ai_llm>=0.1.0",
+  "openai>=2.25.0",
+  "httpx>=0.27.0",
 ]
 
 [tool.uv]

@@ -656,3 +656,36 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
 
     return [{"type": "text", "text": f"error: unknown action '{action}'"}]
 
+
+def computer_tool_handler_batch(args: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Handle computer actions — supports both single (Anthropic) and batch (OpenAI).
+
+    If args contains _openai_batch=True (merged from ToolCall.metadata by registry):
+      Execute all _openai_actions sequentially, return single screenshot.
+    Otherwise:
+      Delegate to single-action computer_tool_handler.
+    """
+    if not args.get("_openai_batch"):
+        return computer_tool_handler(args)
+
+    actions = args.get("_openai_actions", [])
+    if not actions:
+        return [b64_image_from_screenshot()]
+
+    logger = logging.getLogger(LOGGER_NAME)
+    for i, action_args in enumerate(actions):
+        action_name = action_args.get("action", "")
+        if action_name == "screenshot":
+            continue
+
+        logger.debug("Batch action %d/%d: %s", i + 1, len(actions), action_name)
+        try:
+            result = handle_computer_action(action_name, {**action_args, "coordinate_space": "auto"})
+            for block in result:
+                if isinstance(block, dict) and block.get("text", "").startswith("error:"):
+                    logger.warning("Batch action %d failed: %s", i + 1, block.get("text"))
+        except Exception as e:
+            logger.warning("Batch action %d exception: %s", i + 1, e)
+
+    return [b64_image_from_screenshot()]
+

@@ -7,7 +7,7 @@ import injector
 from config.settings import LLM_PROVIDER
 from llm.interfaces import LLMClient
 from tools.registry import ToolRegistry
-from tools.computer import computer_tool_handler
+from tools.computer import computer_tool_handler_batch
 
 
 class LLMModule(injector.Module):
@@ -31,7 +31,7 @@ class ToolsModule(injector.Module):
     @injector.provider
     def provide_tool_registry(self) -> ToolRegistry:  # type: ignore[override]
         reg = ToolRegistry()
-        reg.register("computer", computer_tool_handler)
+        reg.register("computer", computer_tool_handler_batch)
         return reg
 
 

@@ -7,7 +7,7 @@ import injector
 from os_ai_llm.config import LLM_PROVIDER
 from os_ai_llm.interfaces import LLMClient
 from os_ai_core.tools.registry import ToolRegistry
-from os_ai_core.tools.computer import computer_tool_handler
+from os_ai_core.tools.computer import computer_tool_handler_batch
 
 
 class LLMModule(injector.Module):
@@ -31,7 +31,7 @@ class ToolsModule(injector.Module):
     @injector.provider
     def provide_tool_registry(self) -> ToolRegistry:  # type: ignore[override]
         reg = ToolRegistry()
-        reg.register("computer", computer_tool_handler)
+        reg.register("computer", computer_tool_handler_batch)
         return reg
 
 
