@@ -5,8 +5,7 @@
 
 <img width="605" height="669" alt="image" src="https://github.com/user-attachments/assets/481951ca-d255-4ce2-98fa-b5759987f7b4" />
 
-
-https://github.com/user-attachments/assets/5b8e5ff1-5cbd-4515-b593-cd7de0b222cd
+https://i.imgur.com/NxWyExH.mp4
 
 
 
@@ -39,9 +38,23 @@ Available for:
 | Provider | Model | Computer Use | Status |
 |----------|-------|-------------|--------|
 | **OpenAI** | GPT-5.4 | Batched actions, `previous_response_id` continuity | **Fully supported** |
-| **Anthropic** | Claude Sonnet 4 | Single actions, full message history | **Fully supported** |
+| **Anthropic** | Claude Sonnet 4.6 / Opus 4.6 | Single actions, zoom, full message history | **Fully supported** |
 
 Switch providers in **Settings** — enter your API key and select the active provider from the dropdown.
+
+### Provider Comparison (March 2026)
+
+| | OpenAI GPT-5.4 | Anthropic Claude Sonnet 4.6 | Anthropic Claude Opus 4.6 |
+|---|---|---|---|
+| **OSWorld** (desktop tasks) | **75.0%** | 72.5% | 72.7% |
+| **SWE-Bench Verified** (coding) | ~80% | — | **80.8%** |
+| **Input price** (per 1M tokens) | $2.50 | $3.00 | $5.00 |
+| **Output price** (per 1M tokens) | $15.00 | $15.00 | $25.00 |
+| **Context window** | 1.05M | 1M | 1M |
+| **Actions per call** | Batched (multiple) | Single | Single |
+| **Maturity** | 1st generation | 18 months iterated | 18 months iterated |
+
+**TL;DR**: GPT-5.4 leads on desktop automation benchmarks and is cheaper for heavy use. Claude Sonnet 4.6 is the best value at similar quality. Claude Opus 4.6 excels at complex coding tasks.
 
 ---
 
@@ -82,7 +95,7 @@ What it is not (yet):
 
 Highlights:
 - **OpenAI GPT-5.4** with batched actions and `previous_response_id` for efficient multi-step workflows
-- **Anthropic Claude** with single-action precision and full message history
+- **Anthropic Claude Sonnet 4.6 / Opus 4.6** with single-action precision, zoom support, and full message history
 - Provider selection in UI Settings with per-provider API key management
 - Smooth mouse movement, clicks, drag-and-drop with easing and timing controls
 - Reliable keyboard input, hotkeys and hold sequences
@@ -290,14 +303,14 @@ See `docs/architecture-universal-llm.md` for details.
 
 ## Features
 
-- **Multi-provider AI**: OpenAI GPT-5.4 (batched actions) and Anthropic Claude (single actions)
+- **Multi-provider AI**: OpenAI GPT-5.4 (batched actions) and Anthropic Claude Sonnet/Opus 4.6 (single actions, zoom)
 - Smooth mouse motion: easing, distance-based durations
 - Clicks with modifiers: `modifiers: "cmd+shift"` for click/down/up
 - Drag control: multi-point paths for drawing, `hold_before_ms`, `hold_after_ms`, `steps`
 - Keyboard input: `key`, `hold_key`; cross-platform key mapping (cmd/ctrl/win/alt/option)
 - Screenshots: Quartz (macOS) or PyAutoGUI fallback; optional downscale for model display
 - Logging and cost: per-iteration and total usage/cost with retry logic
-- Provider-aware cost estimation (GPT-5.4, Claude Sonnet 4, Opus 4, o4-mini, Haiku)
+- Provider-aware cost estimation (GPT-5.4, Claude Sonnet 4.6, Opus 4.6, o4-mini, Haiku)
 
 ## Supported Platforms
 

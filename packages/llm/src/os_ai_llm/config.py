@@ -13,6 +13,6 @@ API_REQUEST_TIMEOUT_SECONDS = 20.0
 
 # Computer tool types per provider
 COMPUTER_TOOL_TYPES = {
-    "anthropic": "computer_20250124",
+    "anthropic": "computer_20251124",
     "openai": "computer",
 }
