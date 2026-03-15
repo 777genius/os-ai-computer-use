@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _portController;
   String _anthropicKey = '';
   String _openaiKey = '';
+  String _activeProvider = 'anthropic';
 
   bool _isLoading = false;
   bool _showAdvanced = false;
@@ -40,12 +41,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = true);
     try {
       final keys = await _storage.getAllApiKeys();
+      final savedProvider = await _storage.getActiveProvider();
       setState(() {
         _anthropicKey = keys['anthropic'] ?? '';
         _openaiKey = keys['openai'] ?? '';
+        if (savedProvider != null) {
+          _activeProvider = savedProvider;
+        } else {
+          _autoDetectProvider();
+        }
       });
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  void _autoDetectProvider() {
+    if (_openaiKey.isNotEmpty && _anthropicKey.isEmpty) {
+      _activeProvider = 'openai';
+    } else {
+      _activeProvider = 'anthropic';
     }
   }
 
@@ -71,6 +86,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (_openaiKey.isNotEmpty) {
         await _storage.saveOpenAIApiKey(_openaiKey);
       }
+      await _storage.saveActiveProvider(_activeProvider);
 
       // Mark setup as complete
       await _storage.markSetupComplete();
@@ -82,6 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         port: int.tryParse(_portController.text),
         anthropicApiKey: _anthropicKey.isEmpty ? null : _anthropicKey,
         openaiApiKey: _openaiKey.isEmpty ? null : _openaiKey,
+        activeProvider: _activeProvider,
       );
 
       if (!mounted) return;
@@ -163,20 +180,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               hint: 'sk-ant-...',
               initialValue: _anthropicKey,
               provider: ApiProvider.anthropic,
-              required: true,
+              required: _activeProvider == 'anthropic',
               onChanged: (value) => _anthropicKey = value,
             ),
             const SizedBox(height: 16),
 
-            // OpenAI API Key (Optional)
+            // OpenAI API Key
             ApiKeyField(
-              label: 'OpenAI API Key (Optional)',
+              label: 'OpenAI API Key',
               hint: 'sk-...',
               initialValue: _openaiKey,
               provider: ApiProvider.openai,
-              required: false,
+              required: _activeProvider == 'openai',
               onChanged: (value) => _openaiKey = value,
             ),
+            const SizedBox(height: 24),
+
+            // Provider Selector
+            _buildSectionHeader('Active Provider', Icons.smart_toy),
+            const SizedBox(height: 8),
+            _buildProviderSelector(),
             const SizedBox(height: 32),
 
             // Advanced Settings
@@ -254,6 +277,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 decoration: TextDecoration.underline,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderSelector() {
+    final hasAnthropic = _anthropicKey.isNotEmpty;
+    final hasOpenai = _openaiKey.isNotEmpty;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              value: _activeProvider,
+              decoration: const InputDecoration(
+                labelText: 'AI Provider',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.smart_toy),
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: 'anthropic',
+                  child: Row(
+                    children: [
+                      const Text('Anthropic (Claude)'),
+                      const SizedBox(width: 8),
+                      if (hasAnthropic)
+                        const Icon(Icons.check_circle, color: Colors.green, size: 16)
+                      else
+                        const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'openai',
+                  child: Row(
+                    children: [
+                      const Text('OpenAI (GPT-5.4)'),
+                      const SizedBox(width: 8),
+                      if (hasOpenai)
+                        const Icon(Icons.check_circle, color: Colors.green, size: 16)
+                      else
+                        const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _activeProvider = value);
+                }
+              },
+            ),
+            if ((_activeProvider == 'anthropic' && !hasAnthropic) ||
+                (_activeProvider == 'openai' && !hasOpenai))
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Please enter the API key for the selected provider above.',
+                  style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+                ),
+              ),
           ],
         ),
       ),

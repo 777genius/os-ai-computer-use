@@ -15,6 +15,7 @@ class SecureStorageService {
   static const String _anthropicApiKeyKey = 'anthropic_api_key';
   static const String _openaiApiKeyKey = 'openai_api_key';
   static const String _hasCompletedSetupKey = 'has_completed_setup';
+  static const String _activeProviderKey = 'active_provider';
 
   SecureStorageService()
       : _storage = const FlutterSecureStorage(
@@ -70,6 +71,16 @@ class SecureStorageService {
   /// Delete OpenAI API key
   Future<void> deleteOpenAIApiKey() async {
     await _storage.delete(key: _openaiApiKeyKey);
+  }
+
+  // Active provider selection
+
+  Future<void> saveActiveProvider(String provider) async {
+    await _storage.write(key: _activeProviderKey, value: provider);
+  }
+
+  Future<String?> getActiveProvider() async {
+    return await _storage.read(key: _activeProviderKey);
   }
 
   // Setup tracking

@@ -159,6 +159,7 @@ class _AppRootState extends State<AppRoot> {
                 final repo = prev ?? ChatRepositoryImpl(ws, rest);
                 if (repo is ChatRepositoryImpl) {
                   repo.updateWsUriProvider(cfg.wsUri);
+                  repo.updateActiveProviderGetter(() => cfg.activeProvider);
                 }
                 return repo;
               },

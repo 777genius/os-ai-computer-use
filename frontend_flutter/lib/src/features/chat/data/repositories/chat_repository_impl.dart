@@ -16,13 +16,20 @@ class ChatRepositoryImpl implements ChatRepository {
   final BackendWsClient _ws;
   final BackendRestClient _rest;
   Uri Function() _wsUriProvider;
+  String Function() _activeProviderGetter;
 
   ChatRepositoryImpl(this._ws, this._rest)
-      : _wsUriProvider = (() => Uri.parse('ws://127.0.0.1:8765/ws?token=secret'));
+      : _wsUriProvider = (() => Uri.parse('ws://127.0.0.1:8765/ws?token=secret')),
+        _activeProviderGetter = (() => 'anthropic');
 
   /// Update the WebSocket URI provider (used by ProxyProvider to inject AppConfig)
   void updateWsUriProvider(Uri Function() provider) {
     _wsUriProvider = provider;
+  }
+
+  /// Update the active provider getter (used by ProxyProvider to inject AppConfig)
+  void updateActiveProviderGetter(String Function() getter) {
+    _activeProviderGetter = getter;
   }
 
   final _msgCtrl = StreamController<ChatMessage>.broadcast();
@@ -329,8 +336,8 @@ class ChatRepositoryImpl implements ChatRepository {
       'method': 'agent.run',
       'params': {
         'task': task,
+        'provider': _activeProviderGetter(),
         'maxIterations': 30,
-        // передаем короткий контекст из последних сообщений как текстовые пары
         'context': _buildContext(),
         if (_pendingAttachments.isNotEmpty) 'attachments': List<Map<String, String?>>.from(_pendingAttachments),
       },

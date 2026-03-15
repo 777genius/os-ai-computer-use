@@ -7,6 +7,7 @@ class AppConfig extends ChangeNotifier {
   int historyPairsLimit;
   String? anthropicApiKey;
   String? openaiApiKey;
+  String activeProvider;
 
   AppConfig({
     this.host = '127.0.0.1',
@@ -15,16 +16,24 @@ class AppConfig extends ChangeNotifier {
     this.historyPairsLimit = 6,
     this.anthropicApiKey,
     this.openaiApiKey,
+    this.activeProvider = 'anthropic',
   });
 
   Uri wsUri() {
     final uri = Uri.parse('ws://$host:$port/ws?token=$token');
+    final extra = <String, String>{};
 
-    // Add API key to WebSocket connection if available
     if (anthropicApiKey != null && anthropicApiKey!.isNotEmpty) {
+      extra['anthropic_api_key'] = anthropicApiKey!;
+    }
+    if (openaiApiKey != null && openaiApiKey!.isNotEmpty) {
+      extra['openai_api_key'] = openaiApiKey!;
+    }
+
+    if (extra.isNotEmpty) {
       return uri.replace(queryParameters: {
         ...uri.queryParameters,
-        'anthropic_api_key': anthropicApiKey!,
+        ...extra,
       });
     }
 
@@ -40,6 +49,7 @@ class AppConfig extends ChangeNotifier {
     int? historyPairsLimit,
     String? anthropicApiKey,
     String? openaiApiKey,
+    String? activeProvider,
   }) {
     bool changed = false;
     if (host != null && host != this.host) {
@@ -64,6 +74,10 @@ class AppConfig extends ChangeNotifier {
     }
     if (openaiApiKey != null && openaiApiKey != this.openaiApiKey) {
       this.openaiApiKey = openaiApiKey;
+      changed = true;
+    }
+    if (activeProvider != null && activeProvider != this.activeProvider) {
+      this.activeProvider = activeProvider;
       changed = true;
     }
     if (changed) notifyListeners();
