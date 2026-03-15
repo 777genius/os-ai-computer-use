@@ -1,5 +1,7 @@
+import os
+
 # LLM generic config
-LLM_PROVIDER = 'anthropic'
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic")
 MAX_TOKENS = 1500
 # HTTP 429 retry/backoff (generic)
 API_MAX_RETRIES = 5

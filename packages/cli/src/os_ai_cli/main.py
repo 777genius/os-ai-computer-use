@@ -30,7 +30,7 @@ def main() -> int:
         print("Введите задачу:")
         task_text = sys.stdin.readline().strip()
 
-    provider = args.provider or "anthropic"
+    provider = args.provider  # None if not specified → di.py uses LLM_PROVIDER from env/config
     inj = create_container(provider)
     from os_ai_llm.interfaces import LLMClient
     from os_ai_core.tools.registry import ToolRegistry
@@ -38,8 +38,11 @@ def main() -> int:
     tools = inj.get(ToolRegistry)
     orch = Orchestrator(client, tools)
 
+    # Resolve actual provider for tool type lookup
+    actual_provider = provider or client.get_provider_name()
+
     screen_w, screen_h = pyautogui.size()
-    tool_type = _COMPUTER_TOOL_TYPES.get(provider, "computer_20250124")
+    tool_type = _COMPUTER_TOOL_TYPES.get(actual_provider, "computer_20250124")
     tool_descs = [
         ToolDescriptor(
             name="computer",
