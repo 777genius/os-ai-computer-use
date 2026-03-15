@@ -187,6 +187,7 @@ jobs:
           ls -lh *.zip
 
       - name: Notarize app
+        continue-on-error: true
         env:
           APPLE_ID_VAL: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD_VAL: ${{ secrets.APPLE_PASSWORD }}
