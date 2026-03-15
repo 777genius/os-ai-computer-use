@@ -21,7 +21,7 @@ from os_ai_core.tools.registry import ToolRegistry
 
 import pyautogui
 
-from os_ai_llm.config import COMPUTER_TOOL_TYPES as _COMPUTER_TOOL_TYPES
+from os_ai_llm.config import COMPUTER_TOOL_TYPES as _COMPUTER_TOOL_TYPES, LLM_PROVIDER as _DEFAULT_PROVIDER
 _PROVIDER_DISPLAY = {"anthropic": "Anthropic", "openai": "OpenAI"}
 from .jobs import jobs, Job
 from .metrics import metrics
@@ -77,7 +77,7 @@ class WebSocketRPCHandler:
 
                 if method == "session.create":
                     provider = params.get("provider")
-                    provider_display = _PROVIDER_DISPLAY.get(provider or "anthropic", (provider or "anthropic").title())
+                    provider_display = _PROVIDER_DISPLAY.get(provider or _DEFAULT_PROVIDER, (provider or _DEFAULT_PROVIDER).title())
                     try:
                         session_id, client, tools = self._create_session(provider, api_key=api_key)
                         self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
@@ -95,7 +95,7 @@ class WebSocketRPCHandler:
                         await self._send_error(websocket, req_id, -32602, "Missing 'task'")
                         continue
                     provider = params.get("provider")
-                    provider_display = _PROVIDER_DISPLAY.get(provider or "anthropic", (provider or "anthropic").title())
+                    provider_display = _PROVIDER_DISPLAY.get(provider or _DEFAULT_PROVIDER, (provider or _DEFAULT_PROVIDER).title())
                     max_iterations = int(params.get("maxIterations", 30))
                     initial_messages = params.get("context") or []
                     attachments = params.get("attachments") or []
@@ -163,7 +163,7 @@ class WebSocketRPCHandler:
         attachments: list | None = None,
         provider: str | None = None,
     ) -> None:
-        _provider = provider or "anthropic"
+        _provider = provider or _DEFAULT_PROVIDER
         screen_w, screen_h = pyautogui.size()
         tool_descs = [
             ToolDescriptor(
