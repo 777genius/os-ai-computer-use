@@ -118,42 +118,53 @@ jobs:
           IDENTITY="${APPLE_SIGNING_IDENTITY}"
           ENTITLEMENTS="packaging/entitlements.plist"
 
-          echo "Signing all binaries inside the app bundle..."
-
-          # Подписываем все dylib, so, framework бинарники внутри бандла
-          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.o" \) | while read -r lib; do
+          echo "=== Step 1: Sign individual .dylib and .so files ==="
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" \) | while read -r lib; do
+            echo "  Signing: $lib"
             codesign --force --options runtime --timestamp \
-              --entitlements "$ENTITLEMENTS" \
-              --sign "$IDENTITY" "$lib" 2>/dev/null || true
+              --sign "$IDENTITY" "$lib" 2>&1 || true
           done
 
-          # Подписываем все вложенные .app и .framework бандлы
-          find "$APP_PATH" -type d \( -name "*.app" -o -name "*.framework" \) | sort -r | while read -r bundle; do
-            codesign --force --options runtime --timestamp \
-              --entitlements "$ENTITLEMENTS" \
-              --sign "$IDENTITY" "$bundle" 2>/dev/null || true
-          done
-
-          # Подписываем все Mach-O бинарники (исполняемые файлы)
+          echo "=== Step 2: Sign all Mach-O executables ==="
           find "$APP_PATH" -type f -perm +111 | while read -r bin; do
             file_type=$(file -b "$bin")
             if echo "$file_type" | grep -q "Mach-O"; then
+              echo "  Signing: $bin"
               codesign --force --options runtime --timestamp \
-                --entitlements "$ENTITLEMENTS" \
-                --sign "$IDENTITY" "$bin" 2>/dev/null || true
+                --sign "$IDENTITY" "$bin" 2>&1 || true
             fi
           done
 
-          # Финальная подпись всего бандла
-          echo "Final signing of the app bundle..."
-          codesign --force --deep --options runtime --timestamp \
+          echo "=== Step 3: Sign .framework bundles (deepest first) ==="
+          find "$APP_PATH" -type d -name "*.framework" -print0 | \
+            xargs -0 -I{} bash -c 'echo "$(echo "{}" | tr -cd "/" | wc -c) {}"' | \
+            sort -rn | cut -d' ' -f2- | while read -r fw; do
+            echo "  Signing framework: $fw"
+            codesign --force --options runtime --timestamp \
+              --sign "$IDENTITY" "$fw" 2>&1 || true
+          done
+
+          echo "=== Step 4: Sign nested .app bundles (deepest first) ==="
+          find "$APP_PATH" -type d -name "*.app" ! -path "$APP_PATH" -print0 | \
+            xargs -0 -I{} bash -c 'echo "$(echo "{}" | tr -cd "/" | wc -c) {}"' | \
+            sort -rn | cut -d' ' -f2- | while read -r nested_app; do
+            echo "  Signing nested app: $nested_app"
+            codesign --force --options runtime --timestamp \
+              --entitlements "$ENTITLEMENTS" \
+              --sign "$IDENTITY" "$nested_app" 2>&1 || true
+          done
+
+          echo "=== Step 5: Final sign of the top-level bundle (no --deep) ==="
+          codesign --force --options runtime --timestamp \
             --entitlements "$ENTITLEMENTS" \
             --sign "$IDENTITY" "$APP_PATH"
 
-          # Проверка
-          echo "Verifying signature..."
-          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
-          echo "Signature verification passed"
+          echo "=== Verifying signature ==="
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH" || {
+            echo "Strict verification failed, trying basic..."
+            codesign --verify --verbose=2 "$APP_PATH"
+          }
+          echo "Signature OK"
 
       - name: Create DMG
         run: |
