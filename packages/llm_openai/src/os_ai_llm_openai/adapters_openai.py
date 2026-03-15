@@ -243,7 +243,7 @@ class OpenAIClient(LLMClient):
             input_data = self._build_initial_input(messages, system)
 
         if not input_data:
-            input_data = [{"role": "user", "content": "Continue."}]
+            input_data = "Continue."
 
         kwargs: Dict[str, Any] = {
             "model": self._model,
@@ -258,6 +258,10 @@ class OpenAIClient(LLMClient):
             kwargs["instructions"] = system
         if self._model.startswith("gpt-5"):
             kwargs["reasoning"] = {"summary": OPENAI_REASONING_SUMMARY}
+
+        logger.debug("OpenAI request: model=%s, previous_response_id=%s, input_type=%s, input_len=%s",
+                      self._model, previous_response_id, type(input_data).__name__,
+                      len(input_data) if isinstance(input_data, list) else "str")
 
         try:
             resp = self._client.responses.create(**kwargs)
