@@ -105,6 +105,18 @@ jobs:
           python -m PyInstaller packaging/launcher-macos.spec --clean
           ls -la dist/
 
+      - name: Embed Flutter app into bundle
+        run: |
+          FLUTTER_SRC="frontend_flutter/build/macos/Build/Products/Release/OS AI.app"
+          BUNDLE_RESOURCES="dist/OS AI.app/Contents/Resources/flutter_app"
+
+          echo "Copying Flutter .app into bundle Resources..."
+          mkdir -p "$BUNDLE_RESOURCES"
+          cp -R "$FLUTTER_SRC" "$BUNDLE_RESOURCES/OS AI.app"
+
+          echo "Verifying embedded Flutter app structure:"
+          ls -la "$BUNDLE_RESOURCES/OS AI.app/Contents/MacOS/"
+
       - name: Deep sign the app bundle
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}

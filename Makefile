@@ -66,6 +66,9 @@ build-desktop-macos:
 	$(PY) packaging/create_tray_icons.py
 	$(PY) -m pip install pyinstaller
 	$(PY) -m PyInstaller packaging/launcher-macos.spec --clean
+	@echo "Embedding Flutter app into bundle..."
+	mkdir -p "dist/OS AI.app/Contents/Resources/flutter_app"
+	cp -R "frontend_flutter/build/macos/Build/Products/Release/OS AI.app" "dist/OS AI.app/Contents/Resources/flutter_app/OS AI.app"
 	@echo "✓ macOS app built: dist/OS AI.app"
 
 build-desktop-windows:

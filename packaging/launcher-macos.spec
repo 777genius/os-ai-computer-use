@@ -12,12 +12,14 @@ LAUNCHER_SCRIPT = os.path.join(ROOT, 'launcher.py')
 # Collect data files
 datas = []
 
-# Add Flutter app build (will be built by CI/CD before PyInstaller)
+# Flutter .app НЕ встраивается через PyInstaller Tree() — это кодирует точки
+# как __dot__ и ломает структуру macOS бандлов (framework, app).
+# Вместо этого Flutter .app копируется в Contents/Resources/ после сборки
+# PyInstaller (см. CI workflow или Makefile).
 FLUTTER_APP = os.path.join(ROOT, 'frontend_flutter', 'build', 'macos', 'Build', 'Products', 'Release', 'OS AI.app')
 if os.path.exists(FLUTTER_APP):
-    # Bundle entire Flutter .app directory into Resources as Tree (preserves structure)
-    # We'll add this via Tree in Analysis below, not in datas
-    print(f"[OK] Including Flutter app: {FLUTTER_APP}")
+    print(f"[OK] Flutter app found: {FLUTTER_APP}")
+    print("     It will be copied to Resources/flutter_app/ AFTER PyInstaller build")
 else:
     print(f"[WARNING] Flutter app not found at: {FLUTTER_APP}")
     print("  You need to build Flutter first: cd frontend_flutter && flutter build macos --release")
@@ -78,11 +80,6 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
-
-# Add Flutter app as Tree (preserves directory structure and doesn't process as binary)
-if os.path.exists(FLUTTER_APP):
-    flutter_tree = Tree(FLUTTER_APP, prefix='flutter_app/OS AI.app', excludes=[])
-    a.datas += flutter_tree
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

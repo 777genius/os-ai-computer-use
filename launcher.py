@@ -78,12 +78,18 @@ class OSAILauncher:
 
         # Check if running from PyInstaller bundle
         if getattr(sys, 'frozen', False):
-            # PyInstaller extracts data files to _MEIPASS temp directory
-            bundle_dir = Path(sys._MEIPASS)  # type: ignore
-            app_path = bundle_dir / "flutter_app"
+            if system == "Darwin":
+                # macOS: Flutter .app копируется в Contents/Resources/flutter_app/
+                # (не через PyInstaller Tree, чтобы сохранить структуру бандлов)
+                bundle_dir = Path(sys.executable).parent.parent  # Contents/
+                app_path = bundle_dir / "Resources" / "flutter_app"
+            else:
+                # Windows/Linux: PyInstaller extracts data files to _MEIPASS
+                bundle_dir = Path(sys._MEIPASS)  # type: ignore
+                app_path = bundle_dir / "flutter_app"
 
             if system == "Darwin":
-                # macOS: spec bundles to flutter_app/OS AI.app
+                # macOS: flutter_app/OS AI.app/Contents/MacOS/OS AI
                 candidates = [
                     app_path / "OS AI.app" / "Contents" / "MacOS" / "OS AI",
                 ]
