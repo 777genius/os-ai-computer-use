@@ -99,13 +99,15 @@ def test_keypress_empty_keys():
 # === Scroll ===
 
 def test_scroll_down():
-    r = openai_scroll_to_internal(0, -300)
+    # OpenAI: positive scroll_y = DOWN
+    r = openai_scroll_to_internal(0, 300)
     assert r["scroll_direction"] == "down"
     assert r["scroll_amount"] == 3
 
 
 def test_scroll_up():
-    r = openai_scroll_to_internal(0, 200)
+    # OpenAI: negative scroll_y = UP
+    r = openai_scroll_to_internal(0, -200)
     assert r["scroll_direction"] == "up"
     assert r["scroll_amount"] == 2
 
@@ -122,13 +124,13 @@ def test_scroll_zero():
 
 
 def test_scroll_minimum():
-    r = openai_scroll_to_internal(0, -10)
+    r = openai_scroll_to_internal(0, 10)
     assert r["scroll_amount"] == 1
 
 
 def test_scroll_action():
     r = openai_action_to_internal({
-        "type": "scroll", "x": 500, "y": 300, "scroll_x": 0, "scroll_y": -300,
+        "type": "scroll", "x": 500, "y": 300, "scroll_x": 0, "scroll_y": 300,
     })
     assert r["action"] == "scroll"
     assert r["coordinate"] == [500, 300]
@@ -150,11 +152,10 @@ def test_drag_two_points():
         "type": "drag",
         "path": [{"x": 100, "y": 200}, {"x": 300, "y": 400}],
     })
-    assert r == {
-        "action": "left_click_drag",
-        "start_coordinate": [100, 200],
-        "end_coordinate": [300, 400],
-    }
+    assert r["action"] == "left_click_drag"
+    assert r["start_coordinate"] == [100, 200]
+    assert r["end_coordinate"] == [300, 400]
+    assert r["path"] == [[100, 200], [300, 400]]
 
 
 def test_drag_three_points():

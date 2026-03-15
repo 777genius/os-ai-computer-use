@@ -71,7 +71,8 @@ def openai_scroll_to_internal(scroll_x: int, scroll_y: int) -> Dict[str, Any]:
     if scroll_x == 0 and scroll_y == 0:
         return {"scroll_direction": "down", "scroll_amount": 0}
     if abs(scroll_y) >= abs(scroll_x):
-        direction = "down" if scroll_y < 0 else "up"
+        # OpenAI convention: positive scroll_y = DOWN, negative = UP
+        direction = "down" if scroll_y > 0 else "up"
         amount = max(1, abs(scroll_y) // ppc)
         return {"scroll_direction": direction, "scroll_amount": amount}
     else:
@@ -90,13 +91,14 @@ def openai_action_to_internal(action: Dict[str, Any]) -> Dict[str, Any]:
     if action_type == "click":
         button = action.get("button", "left")
         x, y = int(action.get("x", 0)), int(action.get("y", 0))
+        if button in ("back", "forward"):
+            _LOGGER.warning("Mouse button '%s' not supported by pyautogui, skipping click", button)
+            return {"action": "screenshot"}
         action_name = {
             "left": "left_click",
             "right": "right_click",
             "middle": "middle_click",
             "wheel": "middle_click",
-            "back": "left_click",
-            "forward": "left_click",
         }.get(button, "left_click")
         return {"action": action_name, "coordinate": [x, y]}
 
