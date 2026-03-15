@@ -86,6 +86,13 @@ if os.path.exists(FLUTTER_APP):
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Подпись: берём из env или используем identity из Keychain
+CODESIGN_IDENTITY = os.environ.get(
+    'APPLE_SIGNING_IDENTITY',
+    'Developer ID Application: Oleksii Zelenko (6C84CW694S)'
+)
+ENTITLEMENTS = os.path.join(ROOT, 'packaging', 'entitlements.plist')
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -99,8 +106,8 @@ exe = EXE(
     console=False,  # GUI application
     disable_windowed_traceback=False,
     target_arch=None,  # Build for current architecture (GitHub Actions runners)
-    codesign_identity=None,  # Set this for code signing
-    entitlements_file=None,
+    codesign_identity=CODESIGN_IDENTITY,
+    entitlements_file=ENTITLEMENTS,
 )
 
 coll = COLLECT(
@@ -118,13 +125,25 @@ app = BUNDLE(
     name='OS AI.app',
     icon=None,  # TODO: Add .icns icon
     bundle_identifier='com.osai.desktop',
-    version='1.0.0',  # Will be replaced by CI/CD
+    version=os.environ.get('APP_VERSION', '1.0.0'),
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSHighResolutionCapable': 'True',
         'LSUIElement': '0',  # Show in Dock
-        # Permissions
-        'NSAppleEventsUsageDescription': 'OS AI needs to control your computer to perform automation tasks.',
-        'NSSystemAdministrationUsageDescription': 'OS AI needs system access for automation.',
+        'LSMinimumSystemVersion': '10.15',
+
+        # Privacy / разрешения macOS (обязательны для Gatekeeper)
+        'NSScreenCaptureUsageDescription':
+            'OS AI needs screen recording access to capture screenshots for AI-assisted automation.',
+        'NSAppleEventsUsageDescription':
+            'OS AI needs to control your computer to perform automation tasks.',
+        'NSSystemAdministrationUsageDescription':
+            'OS AI needs system access for automation.',
+        'NSAccessibilityUsageDescription':
+            'OS AI needs accessibility access to control mouse and keyboard for automation tasks.',
+        'NSMicrophoneUsageDescription':
+            'OS AI may use the microphone for voice input features.',
+        'NSCameraUsageDescription':
+            'OS AI may use the camera for visual tasks.',
     },
 )

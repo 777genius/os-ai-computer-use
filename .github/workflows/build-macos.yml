@@ -11,12 +11,27 @@ on:
       artifact-name:
         description: 'Name of the artifact'
         value: ${{ jobs.build.outputs.artifact-name }}
+    secrets:
+      APPLE_CERTIFICATE:
+        required: false
+      APPLE_CERTIFICATE_PASSWORD:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
 
 jobs:
   build:
     runs-on: macos-latest
     outputs:
       artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    env:
+      APPLE_SIGNING_IDENTITY: 'Developer ID Application: Oleksii Zelenko (6C84CW694S)'
+      APP_VERSION: ${{ inputs.version }}
 
     steps:
       - name: Checkout code
@@ -34,6 +49,34 @@ jobs:
           flutter-version: '3.29.3'
           channel: 'stable'
           cache: true
+
+      - name: Import Apple certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No certificate provided, skipping import"
+            exit 0
+          fi
+
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          echo -n "$APPLE_CERTIFICATE" | base64 --decode > $CERTIFICATE_PATH
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          security import $CERTIFICATE_PATH -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH $(security list-keychains -d user | sed s/\"//g)
+
+          echo "Certificate imported successfully"
 
       - name: Install Python dependencies
         run: |
@@ -53,34 +96,133 @@ jobs:
         run: flutter build macos --release
 
       - name: Create VERSION file
-        run: echo "${{ inputs.version }}" > VERSION
+        env:
+          BUILD_VERSION: ${{ inputs.version }}
+        run: echo "$BUILD_VERSION" > VERSION
 
       - name: Package with PyInstaller
         run: |
           python -m PyInstaller packaging/launcher-macos.spec --clean
           ls -la dist/
 
-      - name: Create DMG (if create-dmg available)
-        continue-on-error: true
+      - name: Deep sign the app bundle
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
         run: |
-          if command -v create-dmg &> /dev/null; then
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No certificate, skipping signing"
+            exit 0
+          fi
+
+          APP_PATH="dist/OS AI.app"
+          IDENTITY="${APPLE_SIGNING_IDENTITY}"
+          ENTITLEMENTS="packaging/entitlements.plist"
+
+          echo "Signing all binaries inside the app bundle..."
+
+          # Подписываем все dylib, so, framework бинарники внутри бандла
+          find "$APP_PATH" -type f \( -name "*.dylib" -o -name "*.so" -o -name "*.o" \) | while read -r lib; do
+            codesign --force --options runtime --timestamp \
+              --entitlements "$ENTITLEMENTS" \
+              --sign "$IDENTITY" "$lib" 2>/dev/null || true
+          done
+
+          # Подписываем все вложенные .app и .framework бандлы
+          find "$APP_PATH" -type d \( -name "*.app" -o -name "*.framework" \) | sort -r | while read -r bundle; do
+            codesign --force --options runtime --timestamp \
+              --entitlements "$ENTITLEMENTS" \
+              --sign "$IDENTITY" "$bundle" 2>/dev/null || true
+          done
+
+          # Подписываем все Mach-O бинарники (исполняемые файлы)
+          find "$APP_PATH" -type f -perm +111 | while read -r bin; do
+            file_type=$(file -b "$bin")
+            if echo "$file_type" | grep -q "Mach-O"; then
+              codesign --force --options runtime --timestamp \
+                --entitlements "$ENTITLEMENTS" \
+                --sign "$IDENTITY" "$bin" 2>/dev/null || true
+            fi
+          done
+
+          # Финальная подпись всего бандла
+          echo "Final signing of the app bundle..."
+          codesign --force --deep --options runtime --timestamp \
+            --entitlements "$ENTITLEMENTS" \
+            --sign "$IDENTITY" "$APP_PATH"
+
+          # Проверка
+          echo "Verifying signature..."
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          echo "Signature verification passed"
+
+      - name: Create DMG
+        run: |
+          brew install create-dmg || true
+          create-dmg \
+            --volname "OS AI" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --app-drop-link 600 185 \
+            --icon "OS AI.app" 200 185 \
+            "dist/OS_AI_${APP_VERSION}_macOS.dmg" \
+            "dist/OS AI.app" || true
+
+      - name: Create ZIP archive
+        working-directory: dist
+        run: |
+          ditto -c -k --keepParent "OS AI.app" "OS_AI_${APP_VERSION}_macOS.zip"
+          ls -lh *.zip
+
+      - name: Notarize app
+        env:
+          APPLE_ID_VAL: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD_VAL: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID_VAL: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -z "$APPLE_ID_VAL" ] || [ -z "$APPLE_PASSWORD_VAL" ] || [ -z "$APPLE_TEAM_ID_VAL" ]; then
+            echo "Notarization secrets not set, skipping"
+            exit 0
+          fi
+
+          ZIP_PATH="dist/OS_AI_${APP_VERSION}_macOS.zip"
+
+          echo "Submitting for notarization..."
+          xcrun notarytool submit "$ZIP_PATH" \
+            --apple-id "$APPLE_ID_VAL" \
+            --password "$APPLE_PASSWORD_VAL" \
+            --team-id "$APPLE_TEAM_ID_VAL" \
+            --wait --timeout 30m
+
+          echo "Stapling notarization ticket to app..."
+          xcrun stapler staple "dist/OS AI.app"
+
+          # Пересоздаём архивы после staple
+          echo "Recreating archives with stapled ticket..."
+          cd dist
+          rm -f "OS_AI_${APP_VERSION}_macOS.zip"
+          ditto -c -k --keepParent "OS AI.app" "OS_AI_${APP_VERSION}_macOS.zip"
+
+          # Пересоздаём DMG если есть
+          DMG_FILE="OS_AI_${APP_VERSION}_macOS.dmg"
+          if [ -f "$DMG_FILE" ]; then
+            rm -f "$DMG_FILE"
+            cd ..
             create-dmg \
               --volname "OS AI" \
               --window-pos 200 120 \
               --window-size 800 400 \
               --icon-size 100 \
               --app-drop-link 600 185 \
-              "dist/OS_AI_${{ inputs.version }}_macOS.dmg" \
-              "dist/OS AI.app"
-          else
-            echo "create-dmg not found, skipping DMG creation"
+              --icon "OS AI.app" 200 185 \
+              "dist/$DMG_FILE" \
+              "dist/OS AI.app" || true
+
+            # Staple DMG
+            xcrun stapler staple "dist/$DMG_FILE" || true
           fi
 
-      - name: Create ZIP archive
-        working-directory: dist
-        run: |
-          ditto -c -k --keepParent "OS AI.app" "OS_AI_${{ inputs.version }}_macOS.zip"
-          ls -lh *.zip
+          echo "Notarization complete"
 
       - name: Upload artifacts
         id: upload

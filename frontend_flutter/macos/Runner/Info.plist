@@ -28,5 +28,13 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>OS AI needs screen recording access to capture screenshots for AI-assisted automation.</string>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>OS AI needs accessibility access to control mouse and keyboard for automation tasks.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>OS AI needs to control your computer to perform automation tasks.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OS AI may use the microphone for voice input features.</string>
 </dict>
 </plist>

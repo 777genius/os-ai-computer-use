@@ -8,9 +8,9 @@
 PRODUCT_NAME = OS AI
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.frontendFlutter
+PRODUCT_BUNDLE_IDENTIFIER = com.osai.desktop
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 OS AI. All rights reserved.
 MACOSX_DEPLOYMENT_TARGET = 10.14.6
 #include "../../Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"
