@@ -5,7 +5,7 @@
 
 <img width="605" height="669" alt="image" src="https://github.com/user-attachments/assets/481951ca-d255-4ce2-98fa-b5759987f7b4" />
 
-https://i.imgur.com/NxWyExH.mp4
+[![Demo Video](https://i.imgur.com/1z6gNXp.png)](https://i.imgur.com/NxWyExH.mp4)
 
 
 
