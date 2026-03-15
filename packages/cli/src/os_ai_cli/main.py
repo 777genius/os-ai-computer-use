@@ -58,13 +58,16 @@ def main() -> int:
     os_name = platform.system()
     os_version = platform.mac_ver()[0] if os_name == "Darwin" else platform.version()
     os_label = {"Darwin": "macOS", "Windows": "Windows", "Linux": "Linux"}.get(os_name, os_name)
+    is_mac = os_name == "Darwin"
+    mod_key = "cmd" if is_mac else "ctrl"
+    shortcut_examples = f"'{mod_key}+space', '{mod_key}+c'"
 
     system_prompt = (
         f"You are an expert desktop operator on {os_label} {os_version}. "
         "Use the computer tool to complete the user's task. "
         "ONLY take a screenshot when needed. Prefer keyboard shortcuts. "
-        "NEVER send empty key combos; always include a valid key or hotkey like 'cmd+space'. "
-        "When using key/hold_key, provide 'key' or 'keys' as a non-empty string (e.g., 'cmd+space', 'ctrl+c'). "
+        f"NEVER send empty key combos; always include a valid key or hotkey like {shortcut_examples}. "
+        f"When using key/hold_key, provide 'key' or 'keys' as a non-empty string (e.g., {shortcut_examples}). "
         "For any action with coordinates, set coordinate_space='auto' in tool input."
     )
 

@@ -9,18 +9,21 @@ Internal format is what computer_tool_handler() in core/tools/computer.py expect
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any, Dict, List
 
 from os_ai_llm_openai.config import SCROLL_PIXELS_PER_CLICK
 
 _LOGGER = logging.getLogger("os_ai")
 
-# OpenAI key names -> internal (xdotool-style) key names
+_IS_MAC = sys.platform == "darwin"
+
+# OpenAI key names -> internal (pyautogui-compatible) key names
 _OPENAI_KEY_MAP = {
     "Control": "ctrl",
     "Shift": "shift",
-    "Alt": "alt",
-    "Meta": "command",
+    "Alt": "alt" if _IS_MAC else "alt",
+    "Meta": "command" if _IS_MAC else "win",
     "Enter": "enter",
     "Return": "enter",
     "Escape": "esc",
