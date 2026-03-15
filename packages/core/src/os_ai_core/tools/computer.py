@@ -304,10 +304,13 @@ def _to_screen_xy(x: int, y: int, *, coordinate_space: str | None = None) -> Tup
 
 
 def parse_key_combo(combo: str) -> List[str]:
+    _is_mac = sys.platform == "darwin"
+    _meta_key = "command" if _is_mac else "win"
+    _alt_key = "option" if _is_mac else "alt"
     mapping = {
-        "cmd": "command", "command": "command",
+        "cmd": _meta_key, "command": _meta_key,
         "ctrl": "ctrl", "control": "ctrl",
-        "alt": "option", "option": "option",
+        "alt": _alt_key, "option": _alt_key,
         "shift": "shift",
         "enter": "enter", "return": "enter",
         "esc": "esc", "escape": "esc",

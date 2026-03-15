@@ -22,7 +22,7 @@ _IS_MAC = sys.platform == "darwin"
 _OPENAI_KEY_MAP = {
     "Control": "ctrl",
     "Shift": "shift",
-    "Alt": "alt" if _IS_MAC else "alt",
+    "Alt": "option" if _IS_MAC else "alt",
     "Meta": "command" if _IS_MAC else "win",
     "Enter": "enter",
     "Return": "enter",

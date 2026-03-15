@@ -178,7 +178,12 @@ class WebSocketRPCHandler:
         ]
         import platform
         os_name = platform.system()
-        os_version = platform.mac_ver()[0] if os_name == "Darwin" else platform.version()
+        if os_name == "Darwin":
+            os_version = platform.mac_ver()[0]
+        elif os_name == "Linux":
+            os_version = platform.release()
+        else:
+            os_version = platform.version()
         os_label = {"Darwin": "macOS", "Windows": "Windows", "Linux": "Linux"}.get(os_name, os_name)
         is_mac = os_name == "Darwin"
         mod_key = "cmd" if is_mac else "ctrl"
