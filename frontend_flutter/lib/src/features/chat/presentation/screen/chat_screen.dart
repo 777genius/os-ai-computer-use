@@ -42,10 +42,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     final trafficLightPadding = isMacOS ? 78.0 : 16.0;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgAlpha = isDark ? 0.7 : 0.3;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
         surfaceTintColor: Colors.transparent,
         toolbarHeight: isMacOS ? 38 : kToolbarHeight,
         titleSpacing: trafficLightPadding,
@@ -155,7 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           Expanded(
             child: Container(
-              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
               child: UploadOverlay(
                 child: _ChatDropArea(
                   child: const Column(

@@ -11,10 +11,12 @@ class ChatListSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgAlpha = isDark ? 0.7 : 0.3;
     return Container(
       width: 280,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.3),
+        color: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
         border: Border(right: BorderSide(color: context.themeColors.surfaceBorder)),
       ),
       child: Column(
