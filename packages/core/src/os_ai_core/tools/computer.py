@@ -495,8 +495,10 @@ def handle_computer_action(action: str, params: Dict[str, Any]) -> List[Dict[str
                     # Multi-point path: follow all intermediate points for smooth curves
                     for pt in full_path[1:]:
                         px, py = _to_screen_xy(int(pt[0]), int(pt[1]), coordinate_space=coord_space)
-                        step_dur = _compute_duration_to(px, py, params, default=0.02, speed_pps=DEFAULT_DRAG_SPEED_PPS)
-                        pyautogui.moveTo(px, py, duration=step_dur, tween=tween_fn)
+                        # Use short duration for path segments — no MIN_MOVE_DURATION clamp
+                        dist = ((px - pyautogui.position()[0]) ** 2 + (py - pyautogui.position()[1]) ** 2) ** 0.5
+                        seg_dur = max(0.01, dist / float(DEFAULT_DRAG_SPEED_PPS))
+                        pyautogui.moveTo(px, py, duration=seg_dur, tween=tween_fn)
                         if step_delay > 0:
                             time.sleep(step_delay)
                 elif steps <= 1:
