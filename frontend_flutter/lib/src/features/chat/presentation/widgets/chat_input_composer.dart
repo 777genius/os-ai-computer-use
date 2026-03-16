@@ -9,6 +9,7 @@ import 'package:frontend_flutter/src/features/chat/presentation/utils/image_comp
 import 'dart:typed_data';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/upload_overlay.dart';
 import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChatInputComposer extends StatefulWidget {
   const ChatInputComposer({super.key});
@@ -240,10 +241,10 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                         ),
                       );
                     } else {
-                      // Microphone button (placeholder) when no text
+                      // Microphone button — opens voice input site
                       return IconButton(
                         onPressed: () {
-                          // TODO: Implement voice input
+                          launchUrl(Uri.parse('https://voicetext.site/'));
                         },
                         icon: Icon(
                           Icons.mic_none_outlined,
