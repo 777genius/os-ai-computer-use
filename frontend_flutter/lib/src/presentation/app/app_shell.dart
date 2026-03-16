@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/screen/chat_screen.dart';
 import 'package:frontend_flutter/src/features/chat/data/repositories/chat_repository_impl.dart';
@@ -8,7 +10,7 @@ import 'package:frontend_flutter/src/presentation/settings/first_run_dialog.dart
 import 'package:get_it/get_it.dart';
 
 /// Shell widget that sits inside MaterialApp tree.
-/// Handles first-run dialog and ChatRepository disposal.
+/// Handles first-run dialog, ChatRepository disposal, and global hotkeys.
 /// Must be a descendant of MaterialApp to have access to MaterialLocalizations.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -18,12 +20,38 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  HotKey? _stopHotKey;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstRun();
+      _registerGlobalHotkeys();
     });
+  }
+
+  Future<void> _registerGlobalHotkeys() async {
+    try {
+      _stopHotKey = HotKey(
+        key: PhysicalKeyboardKey.escape,
+        modifiers: [HotKeyModifier.control],
+        scope: HotKeyScope.system,
+      );
+      await hotKeyManager.register(
+        _stopHotKey!,
+        keyDownHandler: (_) => _emergencyStop(),
+      );
+    } catch (e) {
+      debugPrint('Failed to register global hotkey: $e');
+    }
+  }
+
+  void _emergencyStop() {
+    try {
+      final repo = context.read<ChatRepository?>();
+      repo?.cancelCurrentJob();
+    } catch (_) {}
   }
 
   Future<void> _checkFirstRun() async {
@@ -45,6 +73,9 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    try {
+      if (_stopHotKey != null) hotKeyManager.unregister(_stopHotKey!);
+    } catch (_) {}
     try {
       final repo = context.read<ChatRepository>();
       if (repo is ChatRepositoryImpl) {

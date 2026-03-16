@@ -401,6 +401,26 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                 ],
               ),
             ),
+
+            // ── Hotkey hint when agent is running ──
+            Observer(
+              builder: (_) {
+                final store = context.read<ChatStore?>();
+                if (store?.running ?? false) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Press Ctrl+Esc to stop the agent (works globally)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ],
         ),
       ),
