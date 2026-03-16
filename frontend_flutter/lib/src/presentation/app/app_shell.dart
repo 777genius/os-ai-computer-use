@@ -7,6 +7,7 @@ import 'package:frontend_flutter/src/features/chat/data/repositories/chat_reposi
 import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
 import 'package:frontend_flutter/src/app/services/secure_storage_service.dart';
 import 'package:frontend_flutter/src/presentation/settings/first_run_dialog.dart';
+import 'package:frontend_flutter/src/presentation/overlay/window_mode_service.dart';
 import 'package:get_it/get_it.dart';
 
 /// Shell widget that sits inside MaterialApp tree.
@@ -21,12 +22,13 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   HotKey? _stopHotKey;
+  HotKey? _overlayHotKey;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkFirstRun();
+      _checkFirstRunAndEnterOverlay();
       _registerGlobalHotkeys();
     });
   }
@@ -42,6 +44,17 @@ class _AppShellState extends State<AppShell> {
         _stopHotKey!,
         keyDownHandler: (_) => _emergencyStop(),
       );
+
+      // Toggle overlay mode: Cmd+Shift+O (macOS) / Ctrl+Shift+O (Win/Linux)
+      _overlayHotKey = HotKey(
+        key: PhysicalKeyboardKey.keyO,
+        modifiers: [HotKeyModifier.meta, HotKeyModifier.shift],
+        scope: HotKeyScope.system,
+      );
+      await hotKeyManager.register(
+        _overlayHotKey!,
+        keyDownHandler: (_) => _toggleOverlay(),
+      );
     } catch (e) {
       debugPrint('Failed to register global hotkey: $e');
     }
@@ -54,20 +67,46 @@ class _AppShellState extends State<AppShell> {
     } catch (_) {}
   }
 
-  Future<void> _checkFirstRun() async {
+  void _toggleOverlay() {
+    try {
+      final wms = context.read<WindowModeService>();
+      wms.toggleOverlay();
+    } catch (e) {
+      debugPrint('Failed to toggle overlay: $e');
+    }
+  }
+
+  Future<void> _checkFirstRunAndEnterOverlay() async {
     try {
       final storage = GetIt.I<SecureStorageService>();
       final hasCompleted = await storage.hasCompletedSetup();
 
       if (!hasCompleted && mounted) {
-        await showDialog<bool>(
+        // First run: show setup dialog in normal window mode
+        final result = await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (context) => const FirstRunDialog(),
         );
+        // After saving token → switch to overlay
+        if (result == true && mounted) {
+          await _enterOverlayMode();
+        }
+      } else if (hasCompleted && mounted) {
+        // Setup already done → start in overlay mode immediately
+        await _enterOverlayMode();
       }
     } catch (e) {
       debugPrint('Error checking first run: $e');
+    }
+  }
+
+  Future<void> _enterOverlayMode() async {
+    try {
+      final wms = context.read<WindowModeService>();
+      await wms.enterOverlay();
+    } catch (e) {
+      debugPrint('Failed to enter overlay mode: $e');
     }
   }
 
@@ -75,6 +114,7 @@ class _AppShellState extends State<AppShell> {
   void dispose() {
     try {
       if (_stopHotKey != null) hotKeyManager.unregister(_stopHotKey!);
+      if (_overlayHotKey != null) hotKeyManager.unregister(_overlayHotKey!);
     } catch (_) {}
     try {
       final repo = context.read<ChatRepository>();
@@ -89,6 +129,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ChatScreen reads WindowModeService itself and adapts layout
     return const ChatScreen();
   }
 }

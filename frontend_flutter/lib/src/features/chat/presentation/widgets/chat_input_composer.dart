@@ -285,21 +285,25 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                   ),
                 ],
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Attach file button
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4, right: 4),
-                    child: IconButton(
-                      onPressed: _pickFiles,
-                      icon: Icon(
-                        Icons.add_circle,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                      tooltip: 'Attach file',
-                    ),
-                  ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 200;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Attach file button — hide when too narrow
+                      if (!isNarrow)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 4, right: 4),
+                          child: IconButton(
+                            onPressed: _pickFiles,
+                            icon: Icon(
+                              Icons.add_circle,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                            tooltip: 'Attach file',
+                          ),
+                        ),
 
                   // Text input with paste interception and Enter/Shift+Enter handling
                   Expanded(
@@ -400,7 +404,9 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                     ),
                   ),
                 ],
-              ),
+              );
+              },
+            ),
             ),
 
             // ── Hotkey hint when agent is running ──

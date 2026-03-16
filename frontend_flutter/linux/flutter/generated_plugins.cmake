@@ -6,7 +6,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   flutter_acrylic
   hotkey_manager_linux
-  screen_retriever
+  pasteboard
+  screen_retriever_linux
   tray_manager
   url_launcher_linux
   window_manager
