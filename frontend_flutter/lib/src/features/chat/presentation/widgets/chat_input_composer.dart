@@ -300,18 +300,25 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                     ),
                   ),
 
-                  // Text input with paste interception
+                  // Text input with paste interception and Enter/Shift+Enter handling
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 0),
                       child: KeyboardListener(
                         focusNode: FocusNode(),
                         onKeyEvent: (event) async {
+                          if (event is! KeyDownEvent) return;
                           // Intercept Cmd+V / Ctrl+V for image paste
-                          if (event is KeyDownEvent &&
-                              event.logicalKey == LogicalKeyboardKey.keyV &&
+                          if (event.logicalKey == LogicalKeyboardKey.keyV &&
                               (HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed)) {
                             await _handlePaste();
+                            return;
+                          }
+                          // Enter = send, Shift+Enter = newline
+                          if (event.logicalKey == LogicalKeyboardKey.enter &&
+                              !HardwareKeyboard.instance.isShiftPressed) {
+                            // Prevent default newline insertion
+                            _sendMessage();
                           }
                         },
                         child: TextField(
@@ -319,7 +326,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                           focusNode: focusNode,
                           minLines: 1,
                           maxLines: 5,
-                          textInputAction: TextInputAction.send,
+                          textInputAction: TextInputAction.newline,
                           decoration: InputDecoration(
                             hintText: 'Give me a task...',
                             hintStyle: TextStyle(
@@ -332,7 +339,6 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                             color: colorScheme.onSurface,
                             fontSize: 16,
                           ),
-                          onSubmitted: (_) => _sendMessage(),
                         ),
                       ),
                     ),
