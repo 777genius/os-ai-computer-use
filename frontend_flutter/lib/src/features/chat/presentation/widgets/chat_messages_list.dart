@@ -64,12 +64,20 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
           _lastLen = len;
         });
 
+        // Group consecutive action messages for compact display
+        final groups = _groupMessages(store!.messages);
+
         return ListView.builder(
           controller: _ctrl,
           padding: const EdgeInsets.all(12),
-          itemCount: len,
+          itemCount: groups.length,
           itemBuilder: (_, i) {
-            final m = store!.messages[i];
+            final group = groups[i];
+            if (group.length > 1) {
+              // Grouped actions
+              return _ActionGroup(actions: group);
+            }
+            final m = group.first;
             if (m.kind == 'attachment_album') {
               final list = (m.meta?['items'] as List?)?.cast<Map>() ?? const [];
               final items = list.map((e) => e.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''))).toList();
@@ -229,6 +237,172 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
         );
       },
     );
+  }
+}
+
+/// Groups consecutive 'action' messages together.
+/// Non-action messages stay as single-element groups.
+List<List<dynamic>> _groupMessages(List messages) {
+  final groups = <List<dynamic>>[];
+  List<dynamic>? currentActions;
+  for (final m in messages) {
+    if (m.kind == 'action') {
+      currentActions ??= [];
+      currentActions.add(m);
+    } else {
+      if (currentActions != null) {
+        groups.add(currentActions);
+        currentActions = null;
+      }
+      groups.add([m]);
+    }
+  }
+  if (currentActions != null) groups.add(currentActions);
+  return groups;
+}
+
+class _ActionGroup extends StatefulWidget {
+  final List actions;
+  const _ActionGroup({required this.actions});
+
+  @override
+  State<_ActionGroup> createState() => _ActionGroupState();
+}
+
+class _ActionGroupState extends State<_ActionGroup> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = widget.actions.length;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: context.themeColors.actionPurpleFill,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: context.themeColors.actionPurpleBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header — always visible
+            InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🔧'),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$count actions',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    // Action type summary (e.g. "3× click, 2× drag")
+                    Flexible(
+                      child: Text(
+                        _buildSummary(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      _expanded ? Icons.expand_less : Icons.expand_more,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Expanded list of actions
+            if (_expanded)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, right: 10, bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final m in widget.actions)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _iconFor(m),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                m.text ?? '',
+                                style: Theme.of(context).textTheme.bodySmall,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _buildSummary() {
+    final counts = <String, int>{};
+    for (final m in widget.actions) {
+      final meta = (m.meta ?? const {});
+      final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
+      final action = (inner['action'] as String?) ?? '';
+      final label = _shortLabel(action);
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+    return counts.entries.map((e) => '${e.value}× ${e.key}').join(', ');
+  }
+
+  String _shortLabel(String action) {
+    switch (action.toLowerCase()) {
+      case 'left_click': return 'click';
+      case 'double_click': return 'dblclick';
+      case 'right_click': return 'rclick';
+      case 'left_click_drag': return 'drag';
+      case 'mouse_move': return 'move';
+      case 'type': return 'type';
+      case 'key': case 'hold_key': return 'key';
+      case 'scroll': return 'scroll';
+      case 'screenshot': return 'screenshot';
+      default: return action;
+    }
+  }
+
+  String _iconFor(dynamic m) {
+    final meta = (m.meta ?? const {});
+    final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
+    final action = ((inner['action'] as String?) ?? '').toLowerCase();
+    if (action.contains('click')) return '🖱️';
+    if (action.contains('drag')) return '🖱️';
+    if (action == 'mouse_move') return '🖱️';
+    if (action == 'type') return '⌨️';
+    if (action == 'key' || action == 'hold_key') return '⌨️';
+    if (action == 'scroll') return '🌀';
+    if (action == 'screenshot') return '📸';
+    return '🔧';
   }
 }
 

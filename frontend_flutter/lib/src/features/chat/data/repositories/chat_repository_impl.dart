@@ -479,14 +479,48 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   String _formatActionText(String? name, String? status, Map<String, dynamic>? meta) {
-    final b = StringBuffer();
-    if (name != null) b.write(name);
-    if (status != null) b.write(' [' + status + ']');
-    if (meta != null && meta.isNotEmpty) {
-      b.write(' ');
-      b.write(meta.toString());
+    if (meta == null || meta.isEmpty) {
+      return '${name ?? 'action'} ${status != null ? '[$status]' : ''}';
     }
-    return b.toString();
+    final action = (meta['action'] as String?) ?? name ?? '';
+    final n = action.toLowerCase();
+
+    if (n == 'screenshot') return 'Screenshot';
+    if (n == 'mouse_move') {
+      final c = meta['coordinate'];
+      return 'Move → ${_fmtCoord(c)}';
+    }
+    if (n == 'left_click' || n == 'double_click' || n == 'triple_click' || n == 'right_click' || n == 'middle_click') {
+      final c = meta['coordinate'];
+      final label = n.replaceAll('_', ' ');
+      return '${label[0].toUpperCase()}${label.substring(1)} ${_fmtCoord(c)}';
+    }
+    if (n == 'left_click_drag') {
+      final s = meta['start_coordinate'] ?? meta['start'];
+      final e = meta['end_coordinate'] ?? meta['end'];
+      return 'Drag ${_fmtCoord(s)} → ${_fmtCoord(e)}';
+    }
+    if (n == 'type') {
+      final text = (meta['text'] as String?) ?? '';
+      final preview = text.length > 30 ? '${text.substring(0, 30)}...' : text;
+      return 'Type "$preview"';
+    }
+    if (n == 'key' || n == 'hold_key') {
+      final key = (meta['key'] as String?) ?? (meta['text'] as String?) ?? '';
+      return 'Key $key';
+    }
+    if (n == 'scroll') {
+      final dir = (meta['scroll_direction'] as String?) ?? 'down';
+      final amt = meta['scroll_amount'] ?? 1;
+      return 'Scroll $dir ×$amt';
+    }
+    if (n == 'wait') return 'Wait';
+    return action;
+  }
+
+  String _fmtCoord(dynamic c) {
+    if (c is List && c.length >= 2) return '(${c[0]}, ${c[1]})';
+    return '';
   }
 
   bool _isProbablyUuid(String s) {
