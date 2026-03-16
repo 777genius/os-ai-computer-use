@@ -26,18 +26,21 @@ class ChatListSidebar extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Chats',
-                    style: context.theme.style((t) => t.body, (c) => c.assistantBubbleFg),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
                   tooltip: 'New chat',
                   onPressed: onCreateChat,
-                  icon: const Icon(Icons.add),
+                  icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onSurface),
                 ),
                 IconButton(
                   tooltip: 'Usage',
                   onPressed: onOpenUsage,
-                  icon: const Icon(Icons.bar_chart_outlined),
+                  icon: Icon(Icons.bar_chart_outlined, color: Theme.of(context).colorScheme.onSurface),
                 ),
               ],
             ),
@@ -116,14 +119,19 @@ class _ChatListItemState extends State<_ChatListItem> {
                         s.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: context.theme.style((t) => t.body, (c) => c.assistantBubbleFg),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: widget.isActive ? FontWeight.w600 : null,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         (s.lastMessageText ?? '').isEmpty ? '—' : s.lastMessageText!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: context.theme.style((t) => t.caption, (c) => c.assistantBubbleFg),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -135,11 +143,15 @@ class _ChatListItemState extends State<_ChatListItem> {
                     children: [
                       Text(
                         '\$${s.totalUsd.toStringAsFixed(4)}',
-                        style: context.theme.style((t) => t.caption, (c) => c.assistantBubbleFg),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       Text(
                         '${s.totalInputTokens + s.totalOutputTokens} tok',
-                        style: context.theme.style((t) => t.caption, (c) => c.assistantBubbleFg),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -171,7 +183,7 @@ class _ChatListItemState extends State<_ChatListItem> {
                         }
                       }
                     },
-                    icon: const Icon(Icons.edit, size: 18),
+                    icon: Icon(Icons.edit, size: 18, color: Theme.of(context).colorScheme.onSurface),
                   ),
                   IconButton(
                     tooltip: 'Delete',
@@ -194,7 +206,7 @@ class _ChatListItemState extends State<_ChatListItem> {
                         widget.onDelete();
                       }
                     },
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    icon: Icon(Icons.delete_outline, size: 18, color: Theme.of(context).colorScheme.error),
                   ),
                 ],
               ],

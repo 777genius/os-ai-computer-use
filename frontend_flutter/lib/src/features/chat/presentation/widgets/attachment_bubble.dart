@@ -62,6 +62,11 @@ class AttachmentBubble extends StatelessWidget {
                 final f = await File(path).writeAsBytes(bytes, flush: true);
                 await OpenFilex.open(f.path);
               },
+              style: TextButton.styleFrom(
+                foregroundColor: isUser
+                    ? context.themeColors.userBubbleFg.withValues(alpha: 0.9)
+                    : context.themeColors.assistantBubbleFg,
+              ),
               child: const Text('Open'),
             ),
           ],
