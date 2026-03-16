@@ -39,7 +39,10 @@ class AnthropicClient(LLMClient):
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None) -> None:
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set")
+            raise RuntimeError(
+                "ANTHROPIC_API_KEY is not set. "
+                "Provide it via the app Settings or set the ANTHROPIC_API_KEY environment variable."
+            )
         try:
             self._client = anthropic.Anthropic(api_key=key, max_retries=0, timeout=httpx.Timeout(float(API_REQUEST_TIMEOUT_SECONDS)))  # type: ignore
         except Exception:

@@ -86,7 +86,10 @@ class WebSocketRPCHandler:
                             "capabilities": {"ws": True, "jsonrpc": True}
                         })
                     except RuntimeError as e:
-                        self._logger.warning("session.create failed: %s", str(e))
+                        self._logger.warning(
+                            "session.create failed (provider=%s): %s",
+                            provider or _DEFAULT_PROVIDER, str(e),
+                        )
                         await self._send_error(websocket, req_id, -32000,
                             f"API key required. Please configure your {provider_display} API key in Settings.")
                 elif method == "agent.run":
@@ -104,7 +107,10 @@ class WebSocketRPCHandler:
                     try:
                         session_id, client, tools = self._create_session(provider, api_key=api_key)
                     except RuntimeError as e:
-                        self._logger.warning("agent.run failed: %s", str(e))
+                        self._logger.warning(
+                            "agent.run failed (provider=%s): %s",
+                            provider or _DEFAULT_PROVIDER, str(e),
+                        )
                         await self._send_error(websocket, req_id, -32000,
                             f"API key required. Please configure your {provider_display} API key in Settings.")
                         continue

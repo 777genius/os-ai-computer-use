@@ -45,7 +45,10 @@ class OpenAIClient(LLMClient):
     def __init__(self, api_key: Optional[str] = None, model_name: Optional[str] = None) -> None:
         key = api_key or os.environ.get("OPENAI_API_KEY")
         if not key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set. "
+                "Provide it via the app Settings or set the OPENAI_API_KEY environment variable."
+            )
         self._client = OpenAI(
             api_key=key,
             timeout=httpx.Timeout(float(OPENAI_API_TIMEOUT_SECONDS)),
