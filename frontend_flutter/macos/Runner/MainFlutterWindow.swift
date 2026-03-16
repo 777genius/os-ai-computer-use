@@ -86,8 +86,10 @@ class MainFlutterWindow: NSPanel {
   // Activate app when panel becomes key — the missing piece for first-click
   // Pattern from Multi.app: https://multi.app/blog/nailing-the-activation-behavior-of-a-spotlight-raycast-like-command-palette
   override func becomeKey() {
-    Task { @MainActor in
+    if #available(macOS 14.0, *) {
       NSApp.activate()
+    } else {
+      NSApp.activate(ignoringOtherApps: true)
     }
     super.becomeKey()
   }
