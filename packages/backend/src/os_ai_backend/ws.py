@@ -205,6 +205,8 @@ class WebSocketRPCHandler:
             "When the user asks a question or wants information, answer in text normally. "
             "Always complete tasks fully — do NOT stop halfway to ask unnecessary questions. "
             "Only ask the user if you hit a genuine dead-end or need credentials/permissions. "
+            "When drawing or dragging, pay attention to the visible canvas/window boundaries in the screenshot — "
+            "keep all coordinates within the actual drawing area, not the full screen. "
             "ONLY take a screenshot when needed. Prefer keyboard shortcuts. "
             f"NEVER send empty key combos; always include a valid key or hotkey like {shortcut_examples}. "
             f"When using key/hold_key, provide 'key' or 'keys' as a non-empty string (e.g., {shortcut_examples}). "
