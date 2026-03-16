@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // removed duplicate provider import
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/attachment_bubble.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/lightbox_viewer.dart';
@@ -186,7 +187,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
             }
             if (m.kind == 'thought') {
               final isThinking = (m.meta?['thinking'] as bool?) == true;
-              return Align(
+              final bubble = Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
                   width: double.infinity,
@@ -218,11 +219,80 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                   ),
                 ),
               );
+              if (isThinking || m.text == null || m.text!.isEmpty) return bubble;
+              return _CopyableHover(text: m.text!, child: bubble);
             }
-            return _MessageBubble(role: m.role, text: m.text ?? '');
+            final bubble = _MessageBubble(role: m.role, text: m.text ?? '');
+            if ((m.text ?? '').isEmpty) return bubble;
+            return _CopyableHover(text: m.text!, child: bubble);
           },
         );
       },
+    );
+  }
+}
+
+class _CopyableHover extends StatefulWidget {
+  final String text;
+  final Widget child;
+  const _CopyableHover({required this.text, required this.child});
+
+  @override
+  State<_CopyableHover> createState() => _CopyableHoverState();
+}
+
+class _CopyableHoverState extends State<_CopyableHover> {
+  bool _hovered = false;
+  bool _copied = false;
+
+  void _copy() {
+    Clipboard.setData(ClipboardData(text: widget.text));
+    setState(() => _copied = true);
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          widget.child,
+          if (_hovered)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _copy,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Icon(
+                      _copied ? Icons.check : Icons.copy,
+                      size: 14,
+                      color: _copied
+                          ? Colors.green
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
