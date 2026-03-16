@@ -333,7 +333,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                               color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                             ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 10),
                           ),
                           style: TextStyle(
                             color: colorScheme.onSurface,
