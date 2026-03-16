@@ -160,7 +160,13 @@ class Orchestrator:
                     break
                 if on_event is not None:
                     try:
-                        on_event("tool_call", {"name": call.name, "args": call.args})
+                        # For batch actions, emit each action separately for UI visibility
+                        batch_actions = call.metadata.get("_openai_actions")
+                        if batch_actions and len(batch_actions) > 1:
+                            for act in batch_actions:
+                                on_event("tool_call", {"name": call.name, "args": act})
+                        else:
+                            on_event("tool_call", {"name": call.name, "args": call.args})
                     except Exception:
                         pass
                 result = self._tools.execute(call)
