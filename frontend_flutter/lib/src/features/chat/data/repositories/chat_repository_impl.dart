@@ -223,6 +223,9 @@ class ChatRepositoryImpl implements ChatRepository {
         final p = m['params'] as Map<String, dynamic>;
         final inTok = (p['input_tokens'] as num? ?? 0).toInt();
         final outTok = (p['output_tokens'] as num? ?? 0).toInt();
+        // Use pre-computed cost from backend (provider-aware) if available, fallback to local rates
+        final inputUsd = (p['input_cost'] as num?)?.toDouble() ?? CostRates.inputUsdFor(inTok);
+        final outputUsd = (p['output_cost'] as num?)?.toDouble() ?? CostRates.outputUsdFor(outTok);
         if (kDebugMode) {
           // ignore: avoid_print
           print('[Repo] event.usage in=' + inTok.toString() + ' out=' + outTok.toString());
@@ -230,8 +233,8 @@ class ChatRepositoryImpl implements ChatRepository {
         final u = CostUsage(
           inputTokens: inTok,
           outputTokens: outTok,
-          inputUsd: CostRates.inputUsdFor(inTok),
-          outputUsd: CostRates.outputUsdFor(outTok),
+          inputUsd: inputUsd,
+          outputUsd: outputUsd,
         );
         _usageCtrl.add(u);
         final cmUsage = ChatMessage(
@@ -251,23 +254,24 @@ class ChatRepositoryImpl implements ChatRepository {
         );
         _msgCtrl.add(cmUsage);
       } else if (method == 'event.final') {
+        final p = m['params'] as Map<String, dynamic>;
+        final status = p['status'] as String?;
+        final error = p['error'] as String?;
         if (kDebugMode) {
           // ignore: avoid_print
-          print('[Repo] event.final');
+          print('[Repo] event.final status=$status');
         }
-        // Закомментировано: скрываем сводное финальное сообщение из UI
-        // final text = p['text'] as String?;
-        // if (text != null && text.isNotEmpty) {
-        //   final cmFinal = ChatMessage(
-        //     id: _nextId(),
-        //     role: 'assistant',
-        //     ts: DateTime.now(),
-        //     kind: 'text',
-        //     text: text,
-        //   );
-        //   _msgCtrl.add(cmFinal);
-        //   _recordHistory(cmFinal, chatId: _jobChat[_currentJobId ?? ''] ?? _activeChatId);
-        // }
+        // Show error message if job failed
+        if (status == 'fail' && error != null && error.isNotEmpty) {
+          _msgCtrl.add(ChatMessage(
+            id: _nextId(),
+            role: 'assistant',
+            ts: DateTime.now(),
+            kind: 'text',
+            text: error,
+            meta: const {'isError': true},
+          ));
+        }
         // remove the Thinking... bubble when job finishes
         if (_thinkingMsgId != null) {
           _msgCtrl.add(ChatMessage(

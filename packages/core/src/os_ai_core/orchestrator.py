@@ -128,12 +128,20 @@ class Orchestrator:
                     pass
                 if on_event is not None:
                     try:
+                        try:
+                            _model = self._client.get_model_name()
+                        except Exception:
+                            _model = "unknown"
+                        _ic, _oc, _tc, _tier = estimate_cost(_model, inp, out)
                         on_event("usage", {
                             "input_tokens": inp,
                             "output_tokens": out,
                             "iteration": iter_idx,
                             "total_input_tokens": int(self.total_input_tokens),
                             "total_output_tokens": int(self.total_output_tokens),
+                            "input_cost": _ic,
+                            "output_cost": _oc,
+                            "total_cost": _tc,
                         })
                     except Exception:
                         pass
