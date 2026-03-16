@@ -61,10 +61,13 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _emergencyStop() {
+    debugPrint('Emergency stop triggered');
     try {
       final repo = context.read<ChatRepository?>();
       repo?.cancelCurrentJob();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Emergency stop error: $e');
+    }
   }
 
   void _toggleOverlay() {

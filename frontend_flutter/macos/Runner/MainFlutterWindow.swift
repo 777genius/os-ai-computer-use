@@ -1,5 +1,13 @@
 import Cocoa
 import FlutterMacOS
+import ObjectiveC
+
+/// NSVisualEffectView that accepts first mouse click without requiring focus.
+class FirstClickVisualEffectView: NSVisualEffectView {
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    return true
+  }
+}
 
 /// Container controller that wraps NSVisualEffectView (blur) + FlutterViewController.
 /// NSWindow.contentViewController will own this, so the blur view stays as the root
@@ -16,14 +24,12 @@ class BlurContainerViewController: NSViewController {
   }
 
   override func loadView() {
-    // NSVisualEffectView is the root view — provides macOS vibrancy blur
-    let visualEffect = NSVisualEffectView()
+    let visualEffect = FirstClickVisualEffectView()
     visualEffect.blendingMode = .behindWindow
     visualEffect.state = .active
     visualEffect.material = .hudWindow
     self.view = visualEffect
 
-    // Add Flutter as a child controller
     addChild(flutterViewController)
     let flutterView = flutterViewController.view
     flutterView.translatesAutoresizingMaskIntoConstraints = false
@@ -45,11 +51,9 @@ class BlurContainerViewController: NSViewController {
 }
 
 /// NSPanel subclass — allows floating over fullscreen apps via collectionBehavior.
-/// NSPanel is a subclass of NSWindow, so all existing window functionality works.
+/// First-click activation pattern from Multi.app / Raycast.
 class MainFlutterWindow: NSPanel {
-  /// Saved frame for restoring after overlay mode
   private var savedFrame: NSRect?
-  /// MethodChannel for communicating with Dart
   private var windowModeChannel: FlutterMethodChannel?
 
   override func awakeFromNib() {
@@ -58,25 +62,81 @@ class MainFlutterWindow: NSPanel {
     self.contentViewController = container
     self.setFrame(windowFrame, display: true)
 
-    // Window style: transparent titlebar with traffic lights inside the window
     self.styleMask.insert(.fullSizeContentView)
     self.titlebarAppearsTransparent = true
     self.titleVisibility = .hidden
     self.isMovableByWindowBackground = true
-
-    // Make the window transparent so the blur shows through
     self.isOpaque = false
     self.backgroundColor = NSColor.clear
-
-    // Panel-specific: don't hide when app deactivates
     self.hidesOnDeactivate = false
+    self.acceptsMouseMovedEvents = true
 
-    // Set up MethodChannel for window mode switching
+    // Always become key on click, don't wait for text field
+    self.becomesKeyOnlyIfNeeded = false
+
+    // Swizzle FlutterViewWrapper to accept first mouse
+    Self.swizzleFlutterViewWrapperIfNeeded()
+
     setupWindowModeChannel(messenger: container.flutterViewController.engine.binaryMessenger)
-
     RegisterGeneratedPlugins(registry: container.flutterViewController)
 
     super.awakeFromNib()
+  }
+
+  // Activate app when panel becomes key — the missing piece for first-click
+  // Pattern from Multi.app: https://multi.app/blog/nailing-the-activation-behavior-of-a-spotlight-raycast-like-command-palette
+  override func becomeKey() {
+    Task { @MainActor in
+      NSApp.activate()
+    }
+    super.becomeKey()
+  }
+
+  // Intercept events before Flutter — make key + set first responder on click
+  override func sendEvent(_ event: NSEvent) {
+    if event.type == .leftMouseDown || event.type == .rightMouseDown {
+      if !self.isKeyWindow {
+        self.makeKey()
+        if let flutterView = findFlutterView(in: self.contentView) {
+          self.makeFirstResponder(flutterView)
+        }
+      }
+    }
+    super.sendEvent(event)
+  }
+
+  override var canBecomeKey: Bool { true }
+  override var canBecomeMain: Bool { true }
+
+  // Recursive search for FlutterView in hierarchy
+  private func findFlutterView(in view: NSView?) -> NSView? {
+    guard let view = view else { return nil }
+    let className = String(describing: type(of: view))
+    if className == "FlutterView" { return view }
+    for subview in view.subviews {
+      if let found = findFlutterView(in: subview) { return found }
+    }
+    return nil
+  }
+
+  // Swizzle FlutterViewWrapper.acceptsFirstMouse to return true
+  private static var hasSwizzled = false
+  private static func swizzleFlutterViewWrapperIfNeeded() {
+    guard !hasSwizzled else { return }
+    hasSwizzled = true
+
+    guard let wrapperClass = NSClassFromString("FlutterViewWrapper") else { return }
+    let selector = #selector(NSView.acceptsFirstMouse(for:))
+    let implementation: @convention(c) (AnyObject, Selector, NSEvent?) -> Bool = { _, _, _ in
+      return true
+    }
+    let imp = unsafeBitCast(implementation, to: IMP.self)
+    let existingMethod = class_getInstanceMethod(wrapperClass, selector)
+    if existingMethod == nil {
+      class_addMethod(wrapperClass, selector, imp, "B@:@")
+    } else {
+      method_setImplementation(existingMethod!, imp)
+    }
   }
 
   private func setupWindowModeChannel(messenger: FlutterBinaryMessenger) {
@@ -105,10 +165,8 @@ class MainFlutterWindow: NSPanel {
   }
 
   private func enterOverlayMode() {
-    // Save current frame for restoring later
     savedFrame = self.frame
 
-    // Panel overlay properties
     self.level = .statusBar
     self.collectionBehavior = [
       .canJoinAllSpaces,
@@ -118,12 +176,10 @@ class MainFlutterWindow: NSPanel {
     self.isFloatingPanel = true
     self.styleMask.insert(.nonactivatingPanel)
 
-    // Hide traffic light buttons in overlay mode
     self.standardWindowButton(.closeButton)?.isHidden = true
     self.standardWindowButton(.miniaturizeButton)?.isHidden = true
     self.standardWindowButton(.zoomButton)?.isHidden = true
 
-    // Resize to compact size and position in bottom-right
     if let screen = self.screen ?? NSScreen.main {
       let overlayWidth: CGFloat = 380
       let overlayHeight: CGFloat = 520
@@ -136,28 +192,23 @@ class MainFlutterWindow: NSPanel {
       self.setFrame(newFrame, display: true, animate: true)
     }
 
-    // Ensure minimum size in overlay mode
     self.minSize = NSSize(width: 300, height: 300)
   }
 
   private func exitOverlayMode() {
-    // Restore normal window properties
     self.level = .normal
     self.collectionBehavior = []
     self.isFloatingPanel = false
     self.styleMask.remove(.nonactivatingPanel)
 
-    // Show traffic light buttons
     self.standardWindowButton(.closeButton)?.isHidden = false
     self.standardWindowButton(.miniaturizeButton)?.isHidden = false
     self.standardWindowButton(.zoomButton)?.isHidden = false
 
-    // Restore saved frame
     if let saved = savedFrame {
       self.setFrame(saved, display: true, animate: true)
     }
 
-    // Reset minimum size
     self.minSize = NSSize(width: 600, height: 400)
   }
 }

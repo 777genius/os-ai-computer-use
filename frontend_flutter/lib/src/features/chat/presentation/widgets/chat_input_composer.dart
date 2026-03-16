@@ -161,13 +161,19 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
   // ── File picker ──
 
   Future<void> _pickFiles() async {
-    final res = await FilePicker.platform.pickFiles(
-      withData: true,
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-    );
-    if (res == null) return;
+    FilePickerResult? res;
+    try {
+      res = await FilePicker.platform.pickFiles(
+        withData: true,
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      );
+    } catch (e) {
+      debugPrint('FilePicker error: $e');
+      return;
+    }
+    if (res == null || res.files.isEmpty) return;
     final repo = context.read<ChatRepository?>();
     if (repo == null) return;
     final store = context.read<UploadStore?>();

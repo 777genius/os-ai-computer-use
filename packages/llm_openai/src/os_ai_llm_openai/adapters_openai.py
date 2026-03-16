@@ -101,10 +101,11 @@ class OpenAIClient(LLMClient):
         return input_items
 
     def _build_tool_result_input(self, messages: List[Message]) -> List[Any]:
-        """Collect computer_call_outputs added AFTER the last assistant message.
+        """Collect NEW input items added AFTER the last assistant message.
 
-        This ensures we only send NEW outputs, not stale ones from previous iterations.
-        With previous_response_id, the server already has older outputs in its chain.
+        With previous_response_id the server already has older context,
+        so we only send items that appeared since the last assistant turn:
+        user text, images, and computer_call_output results.
         """
         last_assistant_idx = -1
         for i, m in enumerate(messages):
@@ -113,10 +114,27 @@ class OpenAIClient(LLMClient):
 
         items: List[Any] = []
         for m in messages[last_assistant_idx + 1:]:
+            parts: List[Dict[str, Any]] = []
             for p in m.content:
-                if isinstance(p, ProviderPart) and p.provider == "openai" and p.sub_type == "computer_call_output":
+                if isinstance(p, TextPart):
+                    parts.append({"type": "input_text", "text": p.text})
+                elif isinstance(p, ImagePart):
+                    data_uri = f"data:{p.media_type};base64,{p.data_base64}"
+                    parts.append({
+                        "type": "input_image",
+                        "image_url": data_uri,
+                        "detail": OPENAI_SCREENSHOT_DETAIL,
+                    })
+                elif isinstance(p, ProviderPart) and p.provider == "openai":
                     if isinstance(p.data, dict):
                         items.append(p.data)
+                    elif isinstance(p.data, list):
+                        items.extend(p.data)
+            if parts:
+                items.append({
+                    "role": m.role if m.role in ("user",) else "user",
+                    "content": parts,
+                })
         return items
 
     # ---- Response parsing ----

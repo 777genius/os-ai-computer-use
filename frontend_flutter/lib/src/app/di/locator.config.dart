@@ -31,32 +31,31 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
 extension GetItInjectableX on _i174.GetIt {
-  // initializes the registration of main-scope dependencies inside of GetIt
+// initializes the registration of main-scope dependencies inside of GetIt
   _i174.GetIt init({
     String? environment,
     _i526.EnvironmentFilter? environmentFilter,
   }) {
-    final gh = _i526.GetItHelper(this, environment, environmentFilter);
+    final gh = _i526.GetItHelper(
+      this,
+      environment,
+      environmentFilter,
+    );
     final appModule = _$AppModule();
     gh.lazySingleton<_i361.Dio>(() => appModule.dio);
     gh.lazySingleton<_i923.ApiKeyValidator>(() => _i923.ApiKeyValidator());
     gh.lazySingleton<_i308.SecureStorageService>(
-      () => _i308.SecureStorageService(),
-    );
+        () => _i308.SecureStorageService());
     gh.lazySingleton<_i286.BackendRestClient>(() => _i286.BackendRestClient());
     gh.lazySingleton<_i468.BackendWsClient>(() => _i468.BackendWsClient());
-    gh.lazySingleton<_i673.ChatRepository>(
-      () => _i151.ChatRepositoryImpl(
-        gh<_i468.BackendWsClient>(),
-        gh<_i286.BackendRestClient>(),
-      ),
-    );
+    gh.lazySingleton<_i673.ChatRepository>(() => _i151.ChatRepositoryImpl(
+          gh<_i468.BackendWsClient>(),
+          gh<_i286.BackendRestClient>(),
+        ));
     gh.factory<_i912.RunTaskUseCase>(
-      () => _i912.RunTaskUseCase(gh<_i673.ChatRepository>()),
-    );
+        () => _i912.RunTaskUseCase(gh<_i673.ChatRepository>()));
     gh.lazySingleton<_i636.AutoUpdaterService>(
-      () => _i636.AutoUpdaterService(gh<_i361.Dio>()),
-    );
+        () => _i636.AutoUpdaterService(gh<_i361.Dio>()));
     return this;
   }
 }

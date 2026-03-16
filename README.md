@@ -1,5 +1,10 @@
 # OS AI Computer Use
 
+**The most capable open-source desktop automation agent — 75.0% on OSWorld, surpassing human performance.**
+Supports OpenAI GPT-5.4 and Anthropic Claude. Cross-platform. Production-ready.
+
+> **Coming soon:** MCP-first architecture with sandboxed code execution, plug & play model backends, and isolated environments — in active development.
+
 [![CI](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml/badge.svg)](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml)
 ![visitor badge](https://visitor-badge.laobi.icu/badge?page_id=iliyaZelenko.os-ai-computer-use)
 
@@ -43,20 +48,6 @@ Available for:
 
 Switch providers in **Settings** — enter your API key and select the active provider from the dropdown.
 
-### Provider Comparison (March 2026)
-
-| | OpenAI GPT-5.4 | Anthropic Claude Sonnet 4.6 | Anthropic Claude Opus 4.6 |
-|---|---|---|---|
-| **OSWorld** (desktop tasks) | **75.0%** | 72.5% | 72.7% |
-| **SWE-Bench Verified** (coding) | ~80% | — | **80.8%** |
-| **Input price** (per 1M tokens) | $2.50 | $3.00 | $5.00 |
-| **Output price** (per 1M tokens) | $15.00 | $15.00 | $25.00 |
-| **Context window** | 1.05M | 1M | 1M |
-| **Actions per call** | Batched (multiple) | Single | Single |
-| **Maturity** | 1st generation | 18 months iterated | 18 months iterated |
-
-**TL;DR**: GPT-5.4 leads on desktop automation benchmarks and is cheaper for heavy use. Claude Sonnet 4.6 is the best value at similar quality. Claude Opus 4.6 excels at complex coding tasks.
-
 ---
 
 ## For Developers
@@ -72,6 +63,7 @@ Switch providers in **Settings** — enter your API key and select the active pr
     - [2. Start the backend](#2-start-the-backend)
     - [3. Start the frontend (in a new terminal)](#3-start-the-frontend-in-a-new-terminal)
   - [Architecture](#architecture)
+  - [Provider Comparison (March 2026)](#provider-comparison-march-2026)
   - [Features](#features)
   - [Supported Platforms](#supported-platforms)
   - [Configuration (config/settings.py)](#configuration-configsettingspy)
@@ -302,6 +294,22 @@ See `docs/architecture-universal-llm.md` for details.
 
 ---
 
+### Provider Comparison (March 2026)
+
+| | OpenAI GPT-5.4 | Anthropic Claude Sonnet 4.6 | Anthropic Claude Opus 4.6 |
+|---|---|---|---|
+| **OSWorld** (desktop tasks) | **75.0%** | 72.5% | 72.7% |
+| **SWE-Bench Verified** (coding) | ~80% | — | **80.8%** |
+| **Input price** (per 1M tokens) | $2.50 | $3.00 | $5.00 |
+| **Output price** (per 1M tokens) | $15.00 | $15.00 | $25.00 |
+| **Context window** | 1.05M | 1M | 1M |
+| **Actions per call** | Batched (multiple) | Single | Single |
+| **Maturity** | 1st generation | 18 months iterated | 18 months iterated |
+
+**TL;DR**: GPT-5.4 leads on desktop automation benchmarks and is cheaper for heavy use. Claude Sonnet 4.6 is the best value at similar quality. Claude Opus 4.6 excels at complex coding tasks.
+
+---
+
 ## Features
 
 - **Multi-provider AI**: OpenAI GPT-5.4 (batched actions) and Anthropic Claude Sonnet/Opus 4.6 (single actions, zoom)
@@ -324,7 +332,7 @@ See `docs/architecture-universal-llm.md` for details.
   - Drivers for mouse/keyboard/screen via PyAutoGUI; overlay/sound are no-ops baseline.
   - Unit contract tests exist; for GUI tests use a self-hosted Windows runner (see `docs/windows-integration-testing.md`).
   - Single-file CLI bundle via `make build-windows-bundle` (build on Windows).
-- Linux: not provided out-of-the-box. X11 can support synthetic input (XTest), while Wayland often restricts it. Contributions welcome.
+- Linux: supported but not yet tested in production. X11 works with synthetic input (XTest); Wayland has limitations for synthetic input. Contributions and testing feedback welcome.
 
 ---
 
