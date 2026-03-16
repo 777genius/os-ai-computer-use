@@ -172,10 +172,8 @@ class Orchestrator:
                     try:
                         batch_actions = call.metadata.get("_openai_actions")
                         if batch_actions and len(batch_actions) > 1:
-                            # Emit single summary for batch, then each action
-                            action_names = [a.get("action", "?") for a in batch_actions]
-                            summary = ", ".join(action_names)
-                            on_event("tool_call", {"name": call.name, "args": {"action": f"batch ({len(batch_actions)}): {summary}"}})
+                            for act in batch_actions:
+                                on_event("tool_call", {"name": call.name, "args": act})
                         else:
                             on_event("tool_call", {"name": call.name, "args": call.args})
                     except Exception:
