@@ -200,11 +200,10 @@ class WebSocketRPCHandler:
 
         system_prompt = (
             f"You are an expert desktop operator on {os_label} {os_version}. "
-            "Your ONLY job is to perform actions on the computer using the computer tool. "
-            "NEVER respond with just text — always use the tool to act. "
-            "If the user asks you to do something (draw, click, type, open, etc.), "
-            "DO IT with the computer tool immediately. Do not describe what you would do. "
-            "Always complete the task fully — do NOT stop halfway to ask unnecessary questions. "
+            "When the user asks you to DO something (draw, click, type, open, navigate, etc.), "
+            "use the computer tool immediately — do not describe what you would do, just act. "
+            "When the user asks a question or wants information, answer in text normally. "
+            "Always complete tasks fully — do NOT stop halfway to ask unnecessary questions. "
             "Only ask the user if you hit a genuine dead-end or need credentials/permissions. "
             "ONLY take a screenshot when needed. Prefer keyboard shortcuts. "
             f"NEVER send empty key combos; always include a valid key or hotkey like {shortcut_examples}. "
