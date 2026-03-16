@@ -98,7 +98,8 @@ class Orchestrator:
             # Save provider context for next iteration
             provider_context = resp.provider_context
 
-            # Print assistant texts immediately
+            # Print assistant texts immediately (deduplicated)
+            _seen_texts: set = set()
             try:
                 for m in resp.messages or []:
                     if getattr(m, "role", None) == "assistant":
@@ -106,7 +107,8 @@ class Orchestrator:
                             try:
                                 if getattr(p, "type", None) == "text":
                                     txt = str(getattr(p, "text", "")).strip()
-                                    if txt:
+                                    if txt and txt not in _seen_texts:
+                                        _seen_texts.add(txt)
                                         logger.info('🧠 %s', txt)
                                         if on_event is not None:
                                             try:
