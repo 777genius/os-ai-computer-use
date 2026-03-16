@@ -102,6 +102,7 @@ class WebSocketRPCHandler:
                     max_iterations = int(params.get("maxIterations", 30))
                     initial_messages = params.get("context") or []
                     attachments = params.get("attachments") or []
+                    previous_response_id = params.get("previous_response_id")
 
                     # Build session and run orchestration in background
                     try:
@@ -134,6 +135,7 @@ class WebSocketRPCHandler:
                         initial_messages=initial_messages,
                         attachments=attachments,
                         provider=provider,
+                        previous_response_id=previous_response_id,
                     ))
                     # job started asynchronously
                 elif method == "agent.cancel":
@@ -168,6 +170,7 @@ class WebSocketRPCHandler:
         initial_messages: list | None = None,
         attachments: list | None = None,
         provider: str | None = None,
+        previous_response_id: str | None = None,
     ) -> None:
         _provider = provider or _DEFAULT_PROVIDER
         screen_w, screen_h = pyautogui.size()
@@ -198,6 +201,8 @@ class WebSocketRPCHandler:
         system_prompt = (
             f"You are an expert desktop operator on {os_label} {os_version}. "
             "Use the computer tool to complete the user's task. "
+            "Always complete the task fully — do NOT stop halfway to ask unnecessary questions. "
+            "Only ask the user if you hit a genuine dead-end or need credentials/permissions. "
             "ONLY take a screenshot when needed. Prefer keyboard shortcuts. "
             f"NEVER send empty key combos; always include a valid key or hotkey like {shortcut_examples}. "
             f"When using key/hold_key, provide 'key' or 'keys' as a non-empty string (e.g., {shortcut_examples}). "
@@ -262,9 +267,14 @@ class WebSocketRPCHandler:
             except Exception as e:
                 self._logger.debug("Failed to process attachments: %s", e)
 
+            # Build initial provider_context if previous_response_id provided (resume)
+            init_ctx = None
+            if previous_response_id:
+                init_ctx = {"previous_response_id": previous_response_id}
+
             # Run orchestrator with auth error handling
             try:
-                messages = orch.run(task_text, tool_descs, system_prompt, max_iterations=max_iterations, cancel_token=cancel, on_event=on_event, initial_messages=base_msgs)
+                messages = orch.run(task_text, tool_descs, system_prompt, max_iterations=max_iterations, cancel_token=cancel, on_event=on_event, initial_messages=base_msgs, initial_provider_context=init_ctx)
             except httpx.HTTPStatusError as e:
                 # Check for authentication/authorization errors
                 if e.response.status_code in (401, 403):
@@ -292,6 +302,7 @@ class WebSocketRPCHandler:
                     "output_tokens": int(getattr(orch, "total_output_tokens", 0) or 0),
                 },
                 "status": "ok",
+                "provider_context": orch.last_provider_context,
             }
 
         try:

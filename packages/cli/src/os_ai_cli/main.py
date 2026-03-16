@@ -70,6 +70,8 @@ def main() -> int:
     system_prompt = (
         f"You are an expert desktop operator on {os_label} {os_version}. "
         "Use the computer tool to complete the user's task. "
+        "Always complete the task fully — do NOT stop halfway to ask unnecessary questions. "
+        "Only ask the user if you hit a genuine dead-end or need credentials/permissions. "
         "ONLY take a screenshot when needed. Prefer keyboard shortcuts. "
         f"NEVER send empty key combos; always include a valid key or hotkey like {shortcut_examples}. "
         f"When using key/hold_key, provide 'key' or 'keys' as a non-empty string (e.g., {shortcut_examples}). "
