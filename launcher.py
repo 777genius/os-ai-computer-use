@@ -37,6 +37,8 @@ class OSAILauncher:
     """Main launcher class that manages backend and frontend lifecycle"""
 
     def __init__(self):
+        self.root_dir = _ROOT
+        self.log_dir = self._get_log_dir()
         self.logger = self._setup_logging()
         self.backend_thread: Optional[threading.Thread] = None
         self.flutter_process: Optional[subprocess.Popen] = None
@@ -48,21 +50,44 @@ class OSAILauncher:
         self.backend_started = threading.Event()
 
         # Determine paths
-        self.root_dir = _ROOT
         self.flutter_app_path = self._find_flutter_app()
 
         self.logger.info(f"OS AI Launcher v{__version__}")
         self.logger.info(f"Root dir: {self.root_dir}")
         self.logger.info(f"Flutter app: {self.flutter_app_path}")
 
+    def _get_log_dir(self) -> Path:
+        """Return a writable directory for log files.
+
+        On macOS: ~/Library/Logs/OS AI/
+        On Linux: ~/.local/share/os-ai/
+        On Windows: %LOCALAPPDATA%/OS AI/
+        Falls back to a temp directory if nothing else works.
+        """
+        system = platform.system()
+        try:
+            if system == "Darwin":
+                log_dir = Path.home() / "Library" / "Logs" / "OS AI"
+            elif system == "Windows":
+                local = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+                log_dir = Path(local) / "OS AI" / "logs"
+            else:
+                log_dir = Path.home() / ".local" / "share" / "os-ai" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            return log_dir
+        except OSError:
+            import tempfile
+            return Path(tempfile.gettempdir())
+
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration"""
+        log_file = self.log_dir / "launcher.log"
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.StreamHandler(sys.stdout),
-                logging.FileHandler(self.root_dir / "launcher.log" if hasattr(self, 'root_dir') else "launcher.log")
+                logging.FileHandler(log_file),
             ]
         )
         return logging.getLogger("os_ai.launcher")
