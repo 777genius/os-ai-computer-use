@@ -340,10 +340,7 @@ class _ActionGroupState extends State<_ActionGroup> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              _iconFor(m),
-                              style: const TextStyle(fontSize: 12),
-                            ),
+                            _iconFor(m),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
@@ -391,18 +388,31 @@ class _ActionGroupState extends State<_ActionGroup> {
     }
   }
 
-  String _iconFor(dynamic m) {
+  Widget _iconFor(dynamic m) {
     final meta = (m.meta ?? const {});
     final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
     final action = ((inner['action'] as String?) ?? '').toLowerCase();
-    if (action.contains('click')) return '🖱️';
-    if (action.contains('drag')) return '🖱️';
-    if (action == 'mouse_move') return '🖱️';
-    if (action == 'type') return '⌨️';
-    if (action == 'key' || action == 'hold_key') return '⌨️';
-    if (action == 'scroll') return '🌀';
-    if (action == 'screenshot') return '📸';
-    return '🔧';
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    const s = 14.0;
+    if (action == 'left_click' || action == 'middle_click')
+      return Icon(Icons.ads_click, size: s, color: color);
+    if (action == 'double_click' || action == 'triple_click')
+      return Icon(Icons.touch_app, size: s, color: color);
+    if (action == 'right_click')
+      return Icon(Icons.more_horiz, size: s, color: color);
+    if (action.contains('drag'))
+      return Icon(Icons.open_with, size: s, color: color);
+    if (action == 'mouse_move')
+      return Icon(Icons.near_me, size: s, color: color);
+    if (action == 'type')
+      return Icon(Icons.keyboard, size: s, color: color);
+    if (action == 'key' || action == 'hold_key')
+      return Icon(Icons.keyboard_command_key, size: s, color: color);
+    if (action == 'scroll')
+      return Icon(Icons.swap_vert, size: s, color: color);
+    if (action == 'screenshot')
+      return Icon(Icons.screenshot_monitor, size: s, color: color);
+    return Icon(Icons.build, size: s, color: color);
   }
 }
 
