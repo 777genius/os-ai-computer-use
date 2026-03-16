@@ -173,7 +173,9 @@ class Orchestrator:
                         # For batch actions, emit each action separately for UI visibility
                         batch_actions = call.metadata.get("_openai_actions")
                         if batch_actions and len(batch_actions) > 1:
-                            for act in batch_actions:
+                            logger.info("Batch tool_call: %d actions", len(batch_actions))
+                            for i, act in enumerate(batch_actions):
+                                logger.info("  action %d/%d: %s", i + 1, len(batch_actions), act.get("action", "?"))
                                 on_event("tool_call", {"name": call.name, "args": act})
                         else:
                             on_event("tool_call", {"name": call.name, "args": call.args})
