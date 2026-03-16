@@ -120,7 +120,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='OS AI.app',
-    icon=None,  # TODO: Add .icns icon
+    icon=os.path.join(ROOT, 'packaging', 'AppIcon.icns') if os.path.exists(os.path.join(ROOT, 'packaging', 'AppIcon.icns')) else None,
     bundle_identifier='com.osai.desktop',
     version=os.environ.get('APP_VERSION', '1.0.0'),
     info_plist={

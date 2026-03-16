@@ -91,6 +91,9 @@ jobs:
       - name: Generate tray icons
         run: python packaging/create_tray_icons.py
 
+      - name: Generate app icon (.icns)
+        run: python packaging/create_app_icon.py
+
       - name: Build Flutter macOS app
         working-directory: frontend_flutter
         run: flutter build macos --release

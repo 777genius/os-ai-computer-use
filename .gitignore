@@ -24,4 +24,5 @@ __pycache__/
 # Build artifacts
 /build/
 /dist/
+packaging/AppIcon.icns
 

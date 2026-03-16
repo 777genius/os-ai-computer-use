@@ -8,6 +8,7 @@ Provides system tray integration for easy show/hide and lifecycle management.
 import os
 import sys
 import glob
+import socket
 import subprocess
 import threading
 import logging
@@ -29,7 +30,7 @@ for _src_dir in glob.glob(str(_ROOT / "packages" / "*" / "src")):
 
 
 # Version info
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 class OSAILauncher:
@@ -144,6 +145,17 @@ class OSAILauncher:
 
         return image
 
+    def _wait_for_port(self, host: str, port: int, timeout: float = 15.0) -> bool:
+        """Poll until the given TCP port accepts connections."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                with socket.create_connection((host, port), timeout=0.5):
+                    return True
+            except OSError:
+                time.sleep(0.2)
+        return False
+
     def start_backend(self):
         """Start the FastAPI backend server in a separate thread"""
         self.logger.info("Starting backend server...")
@@ -157,31 +169,31 @@ class OSAILauncher:
         else:
             self.logger.info("ANTHROPIC_API_KEY found in environment variables")
 
+        host = os.environ.get('OS_AI_BACKEND_HOST', '127.0.0.1')
+        port = int(os.environ.get('OS_AI_BACKEND_PORT', '8765'))
+
         def run_backend():
             try:
                 # Set environment defaults
-                os.environ.setdefault('OS_AI_BACKEND_HOST', '127.0.0.1')
-                os.environ.setdefault('OS_AI_BACKEND_PORT', '8765')
+                os.environ.setdefault('OS_AI_BACKEND_HOST', host)
+                os.environ.setdefault('OS_AI_BACKEND_PORT', str(port))
 
                 from os_ai_backend.app import main as backend_main
-
-                # Signal that backend is starting
-                self.backend_started.set()
 
                 backend_main()
             except Exception as e:
                 self.logger.exception(f"Backend error: {e}")
-                # Clear the event if backend crashes
-                self.backend_started.clear()
 
         self.backend_thread = threading.Thread(target=run_backend, daemon=True)
         self.backend_thread.start()
 
-        # Wait for backend to signal it started (or timeout after 5 seconds)
-        if self.backend_started.wait(timeout=5):
-            self.logger.info("Backend server started on http://127.0.0.1:8765")
+        # Wait for the port to actually become available
+        self.logger.info(f"Waiting for backend on {host}:{port}...")
+        if self._wait_for_port(host, port, timeout=15.0):
+            self.backend_started.set()
+            self.logger.info(f"Backend server ready on http://{host}:{port}")
         else:
-            self.logger.error("Backend failed to start within 5 seconds")
+            self.logger.error(f"Backend failed to start within 15 seconds (port {port} not listening)")
 
     def start_flutter(self):
         """Start the Flutter application"""
@@ -203,6 +215,27 @@ class OSAILauncher:
                 stderr=subprocess.PIPE,
             )
             self.logger.info(f"Flutter app started (PID: {self.flutter_process.pid})")
+
+            # Monitor Flutter process in background
+            def _monitor():
+                proc = self.flutter_process
+                if not proc:
+                    return
+                # Log stderr
+                try:
+                    for line in proc.stderr:  # type: ignore[union-attr]
+                        text = line.decode("utf-8", errors="replace").rstrip()
+                        if text:
+                            self.logger.warning(f"Flutter stderr: {text}")
+                except Exception:
+                    pass
+                # Process ended — log exit code
+                rc = proc.wait()
+                if rc != 0 and self.is_running:
+                    self.logger.error(f"Flutter exited unexpectedly (code {rc})")
+
+            threading.Thread(target=_monitor, daemon=True).start()
+
         except Exception as e:
             self.logger.exception(f"Failed to start Flutter app: {e}")
 

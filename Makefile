@@ -64,6 +64,7 @@ build-desktop-macos:
 	@echo "Building OS AI Desktop for macOS..."
 	cd frontend_flutter && flutter pub get && flutter build macos --release
 	$(PY) packaging/create_tray_icons.py
+	$(PY) packaging/create_app_icon.py
 	$(PY) -m pip install pyinstaller
 	$(PY) -m PyInstaller packaging/launcher-macos.spec --clean
 	@echo "Embedding Flutter app into bundle..."
