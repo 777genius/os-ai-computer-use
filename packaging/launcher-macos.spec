@@ -126,7 +126,7 @@ app = BUNDLE(
     info_plist={
         'NSPrincipalClass': 'NSApplication',
         'NSHighResolutionCapable': 'True',
-        'LSUIElement': '0',  # Show in Dock
+        'LSUIElement': '1',  # Hide from Dock (tray-only); Flutter app shows in Dock
         'LSMinimumSystemVersion': '10.15',
 
         # Privacy / разрешения macOS (обязательны для Gatekeeper)
