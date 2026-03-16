@@ -94,7 +94,10 @@ class _ChatScreenState extends State<ChatScreen> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('OS AI', style: context.theme.style((t) => t.body, (c) => c.assistantBubbleFg)),
+                  Text('OS AI', style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  )),
                   const SizedBox(width: 8),
                   Tooltip(
                     message: switch (conn) {
@@ -109,7 +112,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
               if (usageLine != null)
-                Text(usageLine, style: context.theme.style((t) => t.bodySmall, (c) => c.assistantBubbleFg)),
+                Text(usageLine, style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )),
             ],
           );
         }),
