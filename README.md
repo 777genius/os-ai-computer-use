@@ -30,8 +30,9 @@ Available for:
 - 💬 Chat-based interface with visual feedback
 - 📊 Real-time cost tracking for both providers
 - 🎨 Cross-platform Flutter UI (macOS, Windows, Linux, Web)
-- 🖼️ Image upload and voice input
-- 💬 Multiple chat sessions
+- 🖼️ Image upload and clipboard paste
+- 💬 Multiple chat sessions with persistent history
+- 🔄 Conversation context resume after app restart
 
 ### Supported AI Providers
 
@@ -101,7 +102,7 @@ Highlights:
 - Reliable keyboard input, hotkeys and hold sequences
 - Screenshots (Quartz on macOS or PyAutoGUI fallback), on-disk saving and base64 tool_result
 - Detailed logs and running cost estimation per iteration and total
-- Multiple chats, image upload, voice input
+- Multiple chats, image upload, persistent chat history with context resume
 
 See provider architecture in `docs/architecture-universal-llm.md`, OS ports/drivers in `docs/os-architecture.md`, and packaging notes in `docs/ci-packaging.md`.
 
