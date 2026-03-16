@@ -8,7 +8,8 @@ Supports OpenAI GPT-5.4 and Anthropic Claude. Cross-platform. Production-ready.
 [![CI](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml/badge.svg)](https://github.com/iliyaZelenko/os-ai-computer-use/actions/workflows/ci.yml)
 ![visitor badge](https://visitor-badge.laobi.icu/badge?page_id=iliyaZelenko.os-ai-computer-use)
 
-https://github.com/user-attachments/assets/da7f6963-9d83-468c-bcf6-88463910bb82
+
+https://github.com/user-attachments/assets/7fb80b7f-6cef-45e0-adba-7b616e939a60
 
 ## For End Users
 
