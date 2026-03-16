@@ -304,22 +304,22 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 0),
-                      child: KeyboardListener(
-                        focusNode: FocusNode(),
-                        onKeyEvent: (event) async {
-                          if (event is! KeyDownEvent) return;
+                      child: Focus(
+                        onKeyEvent: (node, event) {
+                          if (event is! KeyDownEvent) return KeyEventResult.ignored;
                           // Intercept Cmd+V / Ctrl+V for image paste
                           if (event.logicalKey == LogicalKeyboardKey.keyV &&
                               (HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isControlPressed)) {
-                            await _handlePaste();
-                            return;
+                            _handlePaste();
+                            return KeyEventResult.ignored; // let TextField paste text too
                           }
-                          // Enter = send, Shift+Enter = newline
+                          // Enter = send (consume event), Shift+Enter = newline (pass through)
                           if (event.logicalKey == LogicalKeyboardKey.enter &&
                               !HardwareKeyboard.instance.isShiftPressed) {
-                            // Prevent default newline insertion
                             _sendMessage();
+                            return KeyEventResult.handled; // prevent newline insertion
                           }
+                          return KeyEventResult.ignored;
                         },
                         child: TextField(
                           controller: controller,
