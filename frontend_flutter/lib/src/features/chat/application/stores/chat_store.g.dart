@@ -9,10 +9,8 @@ part of 'chat_store.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$ChatStore on _ChatStore, Store {
-  late final _$sessionsAtom = Atom(
-    name: '_ChatStore.sessions',
-    context: context,
-  );
+  late final _$sessionsAtom =
+      Atom(name: '_ChatStore.sessions', context: context);
 
   @override
   ObservableList<ChatSession> get sessions {
@@ -27,10 +25,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$activeChatIdAtom = Atom(
-    name: '_ChatStore.activeChatId',
-    context: context,
-  );
+  late final _$activeChatIdAtom =
+      Atom(name: '_ChatStore.activeChatId', context: context);
 
   @override
   String get activeChatId {
@@ -45,10 +41,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$messagesAtom = Atom(
-    name: '_ChatStore.messages',
-    context: context,
-  );
+  late final _$messagesAtom =
+      Atom(name: '_ChatStore.messages', context: context);
 
   @override
   ObservableList<ChatMessage> get messages {
@@ -63,10 +57,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$perChatUsdAtom = Atom(
-    name: '_ChatStore.perChatUsd',
-    context: context,
-  );
+  late final _$perChatUsdAtom =
+      Atom(name: '_ChatStore.perChatUsd', context: context);
 
   @override
   ObservableMap<String, double> get perChatUsd {
@@ -81,10 +73,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$perChatInTokensAtom = Atom(
-    name: '_ChatStore.perChatInTokens',
-    context: context,
-  );
+  late final _$perChatInTokensAtom =
+      Atom(name: '_ChatStore.perChatInTokens', context: context);
 
   @override
   ObservableMap<String, int> get perChatInTokens {
@@ -99,10 +89,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$perChatOutTokensAtom = Atom(
-    name: '_ChatStore.perChatOutTokens',
-    context: context,
-  );
+  late final _$perChatOutTokensAtom =
+      Atom(name: '_ChatStore.perChatOutTokens', context: context);
 
   @override
   ObservableMap<String, int> get perChatOutTokens {
@@ -132,10 +120,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$totalUsdAtom = Atom(
-    name: '_ChatStore.totalUsd',
-    context: context,
-  );
+  late final _$totalUsdAtom =
+      Atom(name: '_ChatStore.totalUsd', context: context);
 
   @override
   double get totalUsd {
@@ -150,10 +136,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$totalInputTokensAtom = Atom(
-    name: '_ChatStore.totalInputTokens',
-    context: context,
-  );
+  late final _$totalInputTokensAtom =
+      Atom(name: '_ChatStore.totalInputTokens', context: context);
 
   @override
   int get totalInputTokens {
@@ -168,10 +152,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$totalOutputTokensAtom = Atom(
-    name: '_ChatStore.totalOutputTokens',
-    context: context,
-  );
+  late final _$totalOutputTokensAtom =
+      Atom(name: '_ChatStore.totalOutputTokens', context: context);
 
   @override
   int get totalOutputTokens {
@@ -201,10 +183,8 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$connectionAtom = Atom(
-    name: '_ChatStore.connection',
-    context: context,
-  );
+  late final _$connectionAtom =
+      Atom(name: '_ChatStore.connection', context: context);
 
   @override
   ConnectionStatus get connection {
@@ -219,36 +199,37 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
-  late final _$sendTaskAsyncAction = AsyncAction(
-    '_ChatStore.sendTask',
-    context: context,
-  );
+  late final _$sendTaskAsyncAction =
+      AsyncAction('_ChatStore.sendTask', context: context);
 
   @override
   Future<void> sendTask(String text) {
     return _$sendTaskAsyncAction.run(() => super.sendTask(text));
   }
 
-  late final _$initAsyncAction = AsyncAction(
-    '_ChatStore.init',
-    context: context,
-  );
+  late final _$initAsyncAction =
+      AsyncAction('_ChatStore.init', context: context);
 
   @override
   Future<void> init() {
     return _$initAsyncAction.run(() => super.init());
   }
 
-  late final _$_ChatStoreActionController = ActionController(
-    name: '_ChatStore',
-    context: context,
-  );
+  late final _$setActiveChatAsyncAction =
+      AsyncAction('_ChatStore.setActiveChat', context: context);
+
+  @override
+  Future<void> setActiveChat(String id) {
+    return _$setActiveChatAsyncAction.run(() => super.setActiveChat(id));
+  }
+
+  late final _$_ChatStoreActionController =
+      ActionController(name: '_ChatStore', context: context);
 
   @override
   String createNewChat({String? title}) {
     final _$actionInfo = _$_ChatStoreActionController.startAction(
-      name: '_ChatStore.createNewChat',
-    );
+        name: '_ChatStore.createNewChat');
     try {
       return super.createNewChat(title: title);
     } finally {
@@ -257,22 +238,9 @@ mixin _$ChatStore on _ChatStore, Store {
   }
 
   @override
-  void setActiveChat(String id) {
-    final _$actionInfo = _$_ChatStoreActionController.startAction(
-      name: '_ChatStore.setActiveChat',
-    );
-    try {
-      return super.setActiveChat(id);
-    } finally {
-      _$_ChatStoreActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
   void renameChat(String id, String title) {
-    final _$actionInfo = _$_ChatStoreActionController.startAction(
-      name: '_ChatStore.renameChat',
-    );
+    final _$actionInfo =
+        _$_ChatStoreActionController.startAction(name: '_ChatStore.renameChat');
     try {
       return super.renameChat(id, title);
     } finally {
@@ -282,9 +250,8 @@ mixin _$ChatStore on _ChatStore, Store {
 
   @override
   void removeChat(String id) {
-    final _$actionInfo = _$_ChatStoreActionController.startAction(
-      name: '_ChatStore.removeChat',
-    );
+    final _$actionInfo =
+        _$_ChatStoreActionController.startAction(name: '_ChatStore.removeChat');
     try {
       return super.removeChat(id);
     } finally {

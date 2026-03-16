@@ -38,6 +38,10 @@ abstract class _ChatStore with Store {
       _updateLastPreviewFor(cid, m.text);
       // Keep Thinking... bubble as the last message while running
       _ensureThinkingLast(cid);
+      // Persist to cache (skip transient messages)
+      if (_shouldPersist(m)) {
+        try { cache?.saveMessage(cid, m); } catch (_) {}
+      }
     });
     repo.usage().listen((u) {
       usage = u;
@@ -122,13 +126,13 @@ abstract class _ChatStore with Store {
   @action
   Future<void> init() async {
     try {
-      // init hive if needed
-      // (инициализацию Hive вынесем в main, здесь только чтение)
       final saved = await cache?.loadSessions();
       if (saved != null && saved.isNotEmpty) {
         sessions = ObservableList.of(saved);
         activeChatId = saved.first.id;
-        _messagesByChat[activeChatId] = ObservableList.of([]);
+        // Lazy-load messages for the active chat
+        final msgs = await cache?.loadMessages(activeChatId);
+        _messagesByChat[activeChatId] = ObservableList.of(msgs ?? []);
         messages = _messagesByChat[activeChatId]!;
         try { repo.setActiveChat(activeChatId); } catch (_) {}
       }
@@ -156,8 +160,17 @@ abstract class _ChatStore with Store {
   }
 
   @action
-  void setActiveChat(String id) {
+  Future<void> setActiveChat(String id) async {
     if (id == activeChatId) return;
+    // Lazy-load messages from cache if not yet in memory
+    if (!_messagesByChat.containsKey(id) || (_messagesByChat[id]?.isEmpty ?? true)) {
+      try {
+        final saved = await cache?.loadMessages(id);
+        if (saved != null && saved.isNotEmpty) {
+          _messagesByChat[id] = ObservableList.of(saved);
+        }
+      } catch (_) {}
+    }
     if (!_messagesByChat.containsKey(id)) {
       _messagesByChat[id] = ObservableList.of([]);
     }
@@ -185,6 +198,7 @@ abstract class _ChatStore with Store {
     perChatInTokens.remove(id);
     perChatOutTokens.remove(id);
     try { cache?.removeSession(id); } catch (_) {}
+    try { cache?.removeMessages(id); } catch (_) {}
     if (activeChatId == id) {
       if (sessions.isNotEmpty) {
         activeChatId = sessions.first.id;
@@ -276,6 +290,13 @@ abstract class _ChatStore with Store {
   }
 
   String _generateChatId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  /// Whether a message should be persisted to disk.
+  bool _shouldPersist(ChatMessage m) {
+    if ((m.kind ?? '') == 'control') return false;
+    if ((m.meta?['thinking'] as bool?) == true) return false;
+    return true;
+  }
 }
 
 
