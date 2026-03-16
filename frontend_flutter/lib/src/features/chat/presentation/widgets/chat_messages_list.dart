@@ -95,63 +95,42 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
               return AttachmentBubble(name: name, fileId: fileId, isUser: m.role == 'user', previewBase64: preview);
             }
             if (m.kind == 'screenshot' && m.imageBase64 != null && m.imageBase64!.isNotEmpty) {
-              final timeStr = '${m.ts.hour.toString().padLeft(2, '0')}:${m.ts.minute.toString().padLeft(2, '0')}';
               return Align(
                 alignment: Alignment.centerLeft,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: context.themeColors.surfaceBorder),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => LightboxViewer(base64Images: [m.imageBase64!]),
-                              ));
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: SizedBox(
-                                width: 50,
-                                height: 50,
-                                child: FittedBox(
-                                  fit: BoxFit.cover,
-                                  child: Image.memory(
-                                    const Base64Decoder().convert(m.imageBase64!),
-                                    gaplessPlayback: true,
-                                  ),
-                                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => LightboxViewer(base64Images: [m.imageBase64!]),
+                          ));
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: FittedBox(
+                              fit: BoxFit.cover,
+                              child: Image.memory(
+                                const Base64Decoder().convert(m.imageBase64!),
+                                gaplessPlayback: true,
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2, right: 4),
-                            child: Text(
-                              'Screenshot  $timeStr',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    if (nextMsg != null)
-                      Positioned(
-                        right: -6,
-                        bottom: 4,
-                        child: _UsageBadge(meta: nextMsg.meta ?? const {}),
-                      ),
-                  ],
+                      if (nextMsg != null)
+                        Positioned(
+                          right: -10,
+                          bottom: -4,
+                          child: _UsageBadge(meta: nextMsg.meta ?? const {}, useInfoColor: true),
+                        ),
+                    ],
+                  ),
                 ),
               );
             }
@@ -179,7 +158,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
               final badge = _actionBadgeFor(context, actionName);
               final Color border = badge.$2;
               final Color fill = badge.$3;
-              final String icon = badge.$1;
+              final IconData icon = badge.$1;
               return Align(
                 alignment: Alignment.centerLeft,
                 child: Container(
@@ -193,7 +172,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(icon),
+                      Icon(icon, size: 16, color: border),
                       const SizedBox(width: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 6),
@@ -233,7 +212,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('🧠'),
+                      Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -321,7 +300,7 @@ class _ActionGroupState extends State<_ActionGroup> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('🔧'),
+                    Icon(Icons.build, size: 16, color: context.themeColors.actionPurpleBorder),
                     const SizedBox(width: 6),
                     Text(
                       '$count actions',
@@ -632,38 +611,39 @@ class _MessageBubble extends StatelessWidget {
 }
 
 // Returns (icon, borderColor, fillColor)
-(String, Color, Color) _actionBadgeFor(BuildContext context, String name) {
+(IconData, Color, Color) _actionBadgeFor(BuildContext context, String name) {
   final n = name.toLowerCase();
   if (n == 'screenshot') {
-    return ('📸', context.themeColors.actionTealBorder, context.themeColors.actionTealFill);
+    return (Icons.screenshot_monitor, context.themeColors.actionTealBorder, context.themeColors.actionTealFill);
   }
   if (n == 'mouse_move') {
-    return ('🖱️', context.themeColors.actionIndigoBorder, context.themeColors.actionIndigoFill);
+    return (Icons.near_me, context.themeColors.actionIndigoBorder, context.themeColors.actionIndigoFill);
   }
   if (n == 'left_click' || n == 'double_click' || n == 'triple_click' || n == 'right_click' || n == 'middle_click') {
-    return ('🖱️', context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
+    return (Icons.ads_click, context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
   }
   if (n == 'left_click_drag') {
-    return ('🖱️', context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
+    return (Icons.open_with, context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
   }
   if (n == 'type') {
-    return ('⌨️', context.themeColors.actionBlueGreyBorder, context.themeColors.actionBlueGreyFill);
+    return (Icons.keyboard, context.themeColors.actionBlueGreyBorder, context.themeColors.actionBlueGreyFill);
   }
   if (n == 'key' || n == 'hold_key') {
-    return ('⌨️', context.themeColors.actionBlueGreyBorder, context.themeColors.actionBlueGreyFill);
+    return (Icons.keyboard_command_key, context.themeColors.actionBlueGreyBorder, context.themeColors.actionBlueGreyFill);
   }
   if (n == 'scroll') {
-    return ('🌀', context.themeColors.actionGreenBorder, context.themeColors.actionGreenFill);
+    return (Icons.swap_vert, context.themeColors.actionGreenBorder, context.themeColors.actionGreenFill);
   }
   if (n == 'wait') {
-    return ('⏱️', context.themeColors.actionOrangeBorder, context.themeColors.actionOrangeFill);
+    return (Icons.hourglass_empty, context.themeColors.actionOrangeBorder, context.themeColors.actionOrangeFill);
   }
-  return ('🔧', context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
+  return (Icons.build, context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
 }
 
 class _UsageBadge extends StatelessWidget {
   final Map<String, dynamic> meta;
-  const _UsageBadge({required this.meta});
+  final bool useInfoColor;
+  const _UsageBadge({required this.meta, this.useInfoColor = false});
 
   @override
   Widget build(BuildContext context) {
@@ -673,6 +653,16 @@ class _UsageBadge extends StatelessWidget {
     final outUsd = (meta['outputUsd'] as num?)?.toDouble() ?? 0.0;
     final totalUsd = (meta['totalUsd'] as num?)?.toDouble() ?? (inUsd + outUsd);
     final totalTok = (inTok is int ? inTok : 0) + (outTok is int ? outTok : 0);
+
+    final borderColor = useInfoColor
+        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)
+        : context.themeColors.usageBorder.withValues(alpha: 0.4);
+    final fillColor = useInfoColor
+        ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+        : context.themeColors.usageFill.withValues(alpha: 0.6);
+    final iconColor = useInfoColor
+        ? Theme.of(context).colorScheme.primary
+        : context.themeColors.usageBorder;
 
     return Tooltip(
       richMessage: TextSpan(
@@ -688,18 +678,16 @@ class _UsageBadge extends StatelessWidget {
       ),
       waitDuration: const Duration(milliseconds: 200),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
         decoration: BoxDecoration(
-          color: context.themeColors.usageFill.withValues(alpha: 0.6),
+          color: fillColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: context.themeColors.usageBorder.withValues(alpha: 0.4),
-          ),
+          border: Border.all(color: borderColor),
         ),
         child: Icon(
           Icons.attach_money,
-          size: 14,
-          color: context.themeColors.usageBorder,
+          size: 13,
+          color: iconColor,
         ),
       ),
     );
