@@ -85,6 +85,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
         setState(() {
           _pendingImages.add(imageBytes);
         });
+        focusNode.requestFocus();
       }
     } catch (_) {}
   }
