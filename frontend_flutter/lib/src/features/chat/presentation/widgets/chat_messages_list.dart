@@ -330,28 +330,13 @@ class _ActionGroupState extends State<_ActionGroup> {
             // Expanded list of actions
             if (_expanded)
               Padding(
-                padding: const EdgeInsets.only(left: 12, right: 10, bottom: 8),
+                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final m in widget.actions)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _iconFor(m),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
-                                m.text ?? '',
-                                style: Theme.of(context).textTheme.bodySmall,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    const Divider(height: 8, thickness: 0.5),
+                    for (var j = 0; j < widget.actions.length; j++)
+                      _ActionRow(index: j + 1, message: widget.actions[j]),
                   ],
                 ),
               ),
@@ -387,32 +372,127 @@ class _ActionGroupState extends State<_ActionGroup> {
       default: return action;
     }
   }
+}
 
-  Widget _iconFor(dynamic m) {
-    final meta = (m.meta ?? const {});
+/// Single action row inside the expanded group.
+/// Shows clean label parsed from meta. Tappable to see full details.
+class _ActionRow extends StatelessWidget {
+  final int index;
+  final dynamic message;
+  const _ActionRow({required this.index, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = (message.meta ?? const {}) as Map;
     final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
     final action = ((inner['action'] as String?) ?? '').toLowerCase();
-    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final label = _formatClean(action, inner);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      onTap: () => _showDetails(context, inner),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+        child: Row(
+          children: [
+            Text(
+              '$index.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 6),
+            _iconWidget(action, colorScheme.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 14, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _iconWidget(String action, Color color) {
     const s = 14.0;
-    if (action == 'left_click' || action == 'middle_click')
-      return Icon(Icons.ads_click, size: s, color: color);
-    if (action == 'double_click' || action == 'triple_click')
-      return Icon(Icons.touch_app, size: s, color: color);
-    if (action == 'right_click')
-      return Icon(Icons.more_horiz, size: s, color: color);
-    if (action.contains('drag'))
-      return Icon(Icons.open_with, size: s, color: color);
-    if (action == 'mouse_move')
-      return Icon(Icons.near_me, size: s, color: color);
-    if (action == 'type')
-      return Icon(Icons.keyboard, size: s, color: color);
-    if (action == 'key' || action == 'hold_key')
-      return Icon(Icons.keyboard_command_key, size: s, color: color);
-    if (action == 'scroll')
-      return Icon(Icons.swap_vert, size: s, color: color);
-    if (action == 'screenshot')
-      return Icon(Icons.screenshot_monitor, size: s, color: color);
+    if (action == 'left_click' || action == 'middle_click') return Icon(Icons.ads_click, size: s, color: color);
+    if (action == 'double_click' || action == 'triple_click') return Icon(Icons.touch_app, size: s, color: color);
+    if (action == 'right_click') return Icon(Icons.more_horiz, size: s, color: color);
+    if (action.contains('drag')) return Icon(Icons.open_with, size: s, color: color);
+    if (action == 'mouse_move') return Icon(Icons.near_me, size: s, color: color);
+    if (action == 'type') return Icon(Icons.keyboard, size: s, color: color);
+    if (action == 'key' || action == 'hold_key') return Icon(Icons.keyboard_command_key, size: s, color: color);
+    if (action == 'scroll') return Icon(Icons.swap_vert, size: s, color: color);
+    if (action == 'screenshot') return Icon(Icons.screenshot_monitor, size: s, color: color);
     return Icon(Icons.build, size: s, color: color);
+  }
+
+  /// Human-readable label parsed from meta (not from m.text).
+  static String _formatClean(String action, Map inner) {
+    if (action == 'screenshot') return 'Screenshot';
+    if (action == 'mouse_move') {
+      return 'Move → ${_coord(inner['coordinate'])}';
+    }
+    if (action == 'left_click') return 'Click ${_coord(inner['coordinate'])}';
+    if (action == 'double_click') return 'Double click ${_coord(inner['coordinate'])}';
+    if (action == 'triple_click') return 'Triple click ${_coord(inner['coordinate'])}';
+    if (action == 'right_click') return 'Right click ${_coord(inner['coordinate'])}';
+    if (action == 'left_click_drag') {
+      return 'Drag ${_coord(inner['start_coordinate'] ?? inner['start'])} → ${_coord(inner['end_coordinate'] ?? inner['end'])}';
+    }
+    if (action == 'type') {
+      final t = (inner['text'] as String?) ?? '';
+      return 'Type "${t.length > 40 ? '${t.substring(0, 40)}...' : t}"';
+    }
+    if (action == 'key' || action == 'hold_key') {
+      return 'Key ${(inner['key'] as String?) ?? (inner['text'] as String?) ?? ''}';
+    }
+    if (action == 'scroll') {
+      return 'Scroll ${(inner['scroll_direction'] as String?) ?? 'down'} ×${inner['scroll_amount'] ?? 1}';
+    }
+    if (action == 'wait') return 'Wait';
+    return action.replaceAll('_', ' ');
+  }
+
+  static String _coord(dynamic c) {
+    if (c is List && c.length >= 2) return '(${c[0]}, ${c[1]})';
+    return '';
+  }
+
+  void _showDetails(BuildContext context, Map details) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Action #$index', style: const TextStyle(fontSize: 16)),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            const JsonEncoder.withIndent('  ').convert(details),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(
+                text: const JsonEncoder.withIndent('  ').convert(details),
+              ));
+              Navigator.pop(context);
+            },
+            child: const Text('Copy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
