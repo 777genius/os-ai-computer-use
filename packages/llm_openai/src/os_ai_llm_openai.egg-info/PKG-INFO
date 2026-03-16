@@ -5,3 +5,5 @@ Classifier: Programming Language :: Python :: 3
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: os_ai_llm>=0.1.0
+Requires-Dist: openai>=2.25.0
+Requires-Dist: httpx>=0.27.0

@@ -1,5 +1,7 @@
 README.md
 pyproject.toml
+src/os_ai_llm_openai/__init__.py
+src/os_ai_llm_openai/action_converter.py
 src/os_ai_llm_openai/adapters_openai.py
 src/os_ai_llm_openai/config.py
 src/os_ai_llm_openai.egg-info/PKG-INFO
@@ -7,3 +9,4 @@ src/os_ai_llm_openai.egg-info/SOURCES.txt
 src/os_ai_llm_openai.egg-info/dependency_links.txt
 src/os_ai_llm_openai.egg-info/requires.txt
 src/os_ai_llm_openai.egg-info/top_level.txt
+tests/test_action_converter.py

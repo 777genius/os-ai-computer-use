@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 src/os_ai_backend/__init__.py
+src/os_ai_backend/__main__.py
 src/os_ai_backend/app.py
 src/os_ai_backend/config.py
 src/os_ai_backend/files.py
