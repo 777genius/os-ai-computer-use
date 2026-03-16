@@ -60,6 +60,7 @@ class ChatRepositoryImpl implements ChatRepository {
   String? _activeChatId;
   final Map<String, String> _jobChat = {}; // jobId -> chatId
   final Map<String, String> _pendingJobs = {}; // reqId -> chatId
+  final Map<String, String> _lastResponseIdByChat = {}; // chatId -> previous_response_id
 
   @override
   Stream<ChatMessage> messages() => _msgCtrl.stream;
@@ -139,6 +140,29 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   void setActiveChat(String chatId) {
     _activeChatId = chatId;
+  }
+
+  /// Restore in-memory conversation history from persisted messages (after app restart).
+  void restoreHistoryFromMessages(String chatId, List<ChatMessage> messages) {
+    final list = <ChatMessage>[];
+    for (final m in messages.reversed) {
+      if ((m.kind == 'text' || m.kind == 'thought') &&
+          (m.role == 'user' || m.role == 'assistant') &&
+          m.text != null && m.text!.trim().isNotEmpty) {
+        list.add(m);
+        if (list.length >= _historyPairsLimit * 2) break;
+      }
+    }
+    if (list.isNotEmpty) {
+      _historyTextByChat[chatId] = list;
+    }
+  }
+
+  /// Set last OpenAI response ID for a chat (restored from Hive).
+  void setLastResponseId(String chatId, String? responseId) {
+    if (responseId != null && responseId.isNotEmpty) {
+      _lastResponseIdByChat[chatId] = responseId;
+    }
   }
 
   void _onWs(Map<String, dynamic> m) {
@@ -284,6 +308,15 @@ class ChatRepositoryImpl implements ChatRepository {
           ));
           _thinkingMsgId = null;
         }
+        // Save provider_context (e.g. previous_response_id) for session resume
+        final provCtx = p['provider_context'];
+        if (provCtx is Map) {
+          final respId = provCtx['previous_response_id']?.toString();
+          final chatId = _jobChat[_currentJobId ?? ''] ?? _activeChatId;
+          if (respId != null && respId.isNotEmpty && chatId != null) {
+            _lastResponseIdByChat[chatId] = respId;
+          }
+        }
         if (_currentJobId != null) {
           _jobChat.remove(_currentJobId);
           _currentJobId = null;
@@ -355,6 +388,8 @@ class ChatRepositoryImpl implements ChatRepository {
         'maxIterations': 30,
         'context': _buildContext(),
         if (_pendingAttachments.isNotEmpty) 'attachments': List<Map<String, String?>>.from(_pendingAttachments),
+        if (_activeChatId != null && _lastResponseIdByChat.containsKey(_activeChatId!))
+          'previous_response_id': _lastResponseIdByChat[_activeChatId!],
       },
     });
     _currentJobId = id;
@@ -629,6 +664,9 @@ class ChatRepositoryImpl implements ChatRepository {
       }
     }
   }
+
+  /// Get last response ID for a chat (for persisting to Hive).
+  String? getLastResponseId(String chatId) => _lastResponseIdByChat[chatId];
 
   /// Cleanup resources to prevent memory leaks
   Future<void> dispose() async {

@@ -270,18 +270,32 @@ class OpenAIClient(LLMClient):
 
         try:
             resp = self._client.responses.create(**kwargs)
+        except APIStatusError as e:
+            # Fallback: if previous_response_id expired/invalid, retry without it
+            if previous_response_id and e.status_code in (400, 404):
+                logger.warning("previous_response_id rejected (%s), falling back to full context", e.status_code)
+                kwargs.pop("previous_response_id", None)
+                kwargs["input"] = self._build_initial_input(messages, system)
+                try:
+                    resp = self._client.responses.create(**kwargs)
+                except Exception as retry_err:
+                    logger.error("OpenAI retry without previous_response_id failed: %s", retry_err)
+                    return LLMResponse(
+                        messages=[Message(role="assistant", content=[TextPart(text=f"API error: {retry_err}")])],
+                        tool_calls=[], usage=Usage(),
+                    )
+            else:
+                logger.error("OpenAI API error %s: %s", e.status_code, e.message)
+                return LLMResponse(
+                    messages=[Message(role="assistant", content=[TextPart(text=f"API error: {e.message}")])],
+                    tool_calls=[], usage=Usage(),
+                )
         except RateLimitError as e:
             logger.error("Rate limited by OpenAI (retries exhausted): %s", e)
             return LLMResponse(
                 messages=[Message(role="assistant", content=[TextPart(text=f"Rate limited: {e}")])],
                 tool_calls=[], usage=Usage(),
                 provider_context={"previous_response_id": provider_context.get("previous_response_id") if provider_context else None},
-            )
-        except APIStatusError as e:
-            logger.error("OpenAI API error %s: %s", e.status_code, e.message)
-            return LLMResponse(
-                messages=[Message(role="assistant", content=[TextPart(text=f"API error: {e.message}")])],
-                tool_calls=[], usage=Usage(),
             )
         except (APIConnectionError, APITimeoutError) as e:
             logger.error("OpenAI connection/timeout: %s", e)

@@ -10,6 +10,7 @@ extension ChatSessionMapper on ChatSession {
       'totalInputTokens': totalInputTokens,
       'totalOutputTokens': totalOutputTokens,
       'lastMessageText': lastMessageText,
+      'lastResponseId': lastResponseId,
     };
   }
 
@@ -22,6 +23,7 @@ extension ChatSessionMapper on ChatSession {
       totalInputTokens: (map['totalInputTokens'] as num?)?.toInt() ?? 0,
       totalOutputTokens: (map['totalOutputTokens'] as num?)?.toInt() ?? 0,
       lastMessageText: (map['lastMessageText'] as String?),
+      lastResponseId: (map['lastResponseId'] as String?),
     );
   }
 }

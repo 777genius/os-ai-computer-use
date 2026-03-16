@@ -29,6 +29,7 @@ class Orchestrator:
         self._tools = tool_registry
         self.total_input_tokens: int = 0
         self.total_output_tokens: int = 0
+        self.last_provider_context: Optional[Dict[str, Any]] = None
 
     def run(
         self,
@@ -40,6 +41,7 @@ class Orchestrator:
         cancel_token: Optional[CancelToken] = None,
         on_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
         initial_messages: Optional[List[Message]] = None,
+        initial_provider_context: Optional[Dict[str, Any]] = None,
     ) -> List[Message]:
         messages: List[Message] = []
         try:
@@ -49,7 +51,7 @@ class Orchestrator:
             pass
         messages.append(Message(role="user", content=[TextPart(text=task)]))
         logger = logging.getLogger(LOGGER_NAME)
-        provider_context: Optional[Dict[str, Any]] = None
+        provider_context: Optional[Dict[str, Any]] = initial_provider_context
         try:
             self.total_input_tokens = 0
             self.total_output_tokens = 0
@@ -97,6 +99,7 @@ class Orchestrator:
 
             # Save provider context for next iteration
             provider_context = resp.provider_context
+            self.last_provider_context = provider_context
 
             # Print assistant texts immediately (deduplicated)
             _seen_texts: set = set()

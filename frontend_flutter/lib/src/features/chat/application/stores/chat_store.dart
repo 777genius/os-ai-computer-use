@@ -3,6 +3,7 @@ import 'package:frontend_flutter/src/features/chat/domain/entities/chat_message.
 import 'package:frontend_flutter/src/features/chat/domain/entities/cost_usage.dart';
 import 'package:frontend_flutter/src/features/chat/domain/entities/chat_session.dart';
 import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
+import 'package:frontend_flutter/src/features/chat/data/repositories/chat_repository_impl.dart';
 // injectable не используем для ChatStore, создаётся через Provider
 import 'package:frontend_flutter/src/features/chat/data/cache/chat_cache.dart';
 import 'package:frontend_flutter/src/features/chat/domain/entities/connection_status.dart';
@@ -65,6 +66,8 @@ abstract class _ChatStore with Store {
       } else {
         // Fallback: remove any leftover Thinking... bubbles across all chats
         _removeThinkingMessages();
+        // Persist latest response_id from repo (for OpenAI session resume)
+        _persistResponseId(_usageChatId ?? activeChatId);
         _messageChatId = null;
         _usageChatId = null;
       }
@@ -135,12 +138,11 @@ abstract class _ChatStore with Store {
         _messagesByChat[activeChatId] = ObservableList.of(msgs ?? []);
         messages = _messagesByChat[activeChatId]!;
         try { repo.setActiveChat(activeChatId); } catch (_) {}
+        // Restore conversation context for AI from persisted messages
+        _restoreContext(activeChatId, msgs);
       }
     } catch (_) {}
     await repo.createSession();
-    try {
-      // scoped config fetch placeholder
-    } catch (_) {}
   }
 
   @action
@@ -163,11 +165,12 @@ abstract class _ChatStore with Store {
   Future<void> setActiveChat(String id) async {
     if (id == activeChatId) return;
     // Lazy-load messages from cache if not yet in memory
+    List<ChatMessage>? loaded;
     if (!_messagesByChat.containsKey(id) || (_messagesByChat[id]?.isEmpty ?? true)) {
       try {
-        final saved = await cache?.loadMessages(id);
-        if (saved != null && saved.isNotEmpty) {
-          _messagesByChat[id] = ObservableList.of(saved);
+        loaded = await cache?.loadMessages(id);
+        if (loaded != null && loaded.isNotEmpty) {
+          _messagesByChat[id] = ObservableList.of(loaded);
         }
       } catch (_) {}
     }
@@ -177,6 +180,8 @@ abstract class _ChatStore with Store {
     activeChatId = id;
     messages = _messagesByChat[id]!;
     try { repo.setActiveChat(id); } catch (_) {}
+    // Restore conversation context for AI
+    _restoreContext(id, loaded);
   }
 
   @action
@@ -296,6 +301,45 @@ abstract class _ChatStore with Store {
     if ((m.kind ?? '') == 'control') return false;
     if ((m.meta?['thinking'] as bool?) == true) return false;
     return true;
+  }
+
+  /// Restore AI conversation context from persisted messages and session metadata.
+  void _restoreContext(String chatId, List? messages) {
+    try {
+      if (repo is ChatRepositoryImpl) {
+        final impl = repo as ChatRepositoryImpl;
+        if (messages != null && messages.isNotEmpty) {
+          impl.restoreHistoryFromMessages(chatId, messages.cast<ChatMessage>());
+        }
+        // Restore previous_response_id from session
+        final session = sessions.cast<ChatSession?>().firstWhere(
+          (s) => s?.id == chatId, orElse: () => null,
+        );
+        if (session?.lastResponseId != null) {
+          impl.setLastResponseId(chatId, session!.lastResponseId);
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Save latest response_id from repo into session and Hive.
+  void _persistResponseId(String chatId) {
+    try {
+      if (repo is ChatRepositoryImpl) {
+        final respId = (repo as ChatRepositoryImpl).getLastResponseId(chatId);
+        if (respId != null && respId.isNotEmpty) {
+          final idx = sessions.indexWhere((s) => s.id == chatId);
+          if (idx >= 0) {
+            final s = sessions[idx];
+            if (s.lastResponseId != respId) {
+              final next = s.copyWith(lastResponseId: respId);
+              sessions[idx] = next;
+              try { cache?.upsertSession(next); } catch (_) {}
+            }
+          }
+        }
+      }
+    } catch (_) {}
   }
 }
 

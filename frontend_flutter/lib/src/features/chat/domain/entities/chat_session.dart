@@ -8,6 +8,7 @@ class ChatSession extends Equatable {
   final int totalInputTokens;
   final int totalOutputTokens;
   final String? lastMessageText;
+  final String? lastResponseId; // OpenAI previous_response_id for session resume
 
   const ChatSession({
     required this.id,
@@ -17,6 +18,7 @@ class ChatSession extends Equatable {
     this.totalInputTokens = 0,
     this.totalOutputTokens = 0,
     this.lastMessageText,
+    this.lastResponseId,
   });
 
   ChatSession copyWith({
@@ -27,6 +29,7 @@ class ChatSession extends Equatable {
     int? totalInputTokens,
     int? totalOutputTokens,
     String? lastMessageText,
+    String? lastResponseId,
   }) {
     return ChatSession(
       id: id ?? this.id,
@@ -36,18 +39,15 @@ class ChatSession extends Equatable {
       totalInputTokens: totalInputTokens ?? this.totalInputTokens,
       totalOutputTokens: totalOutputTokens ?? this.totalOutputTokens,
       lastMessageText: lastMessageText ?? this.lastMessageText,
+      lastResponseId: lastResponseId ?? this.lastResponseId,
     );
   }
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        createdAt,
-        totalUsd,
-        totalInputTokens,
-        totalOutputTokens,
-        lastMessageText,
+        id, title, createdAt, totalUsd,
+        totalInputTokens, totalOutputTokens,
+        lastMessageText, lastResponseId,
       ];
 }
 
