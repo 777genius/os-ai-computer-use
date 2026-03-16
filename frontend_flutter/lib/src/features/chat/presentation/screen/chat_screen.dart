@@ -96,7 +96,16 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Text('OS AI', style: context.theme.style((t) => t.body, (c) => c.assistantBubbleFg)),
                   const SizedBox(width: 8),
-                  statusIndicator(),
+                  Tooltip(
+                    message: switch (conn) {
+                      ConnectionStatus.connected => 'Connected',
+                      ConnectionStatus.connecting => 'Connecting...',
+                      ConnectionStatus.disconnected => 'Disconnected',
+                      ConnectionStatus.offline => 'Offline',
+                      ConnectionStatus.error => 'Connection error',
+                    },
+                    child: statusIndicator(),
+                  ),
                 ],
               ),
               if (usageLine != null)
