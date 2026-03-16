@@ -73,6 +73,11 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
           itemCount: groups.length,
           itemBuilder: (_, i) {
             final group = groups[i];
+            // Peek at next group to attach usage badge to current message
+            final nextMsg = (i + 1 < groups.length && groups[i + 1].length == 1 && groups[i + 1].first.kind == 'usage')
+                ? groups[i + 1].first
+                : null;
+
             if (group.length > 1) {
               // Grouped actions
               return _ActionGroup(actions: group);
@@ -90,14 +95,15 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
               return AttachmentBubble(name: name, fileId: fileId, isUser: m.role == 'user', previewBase64: preview);
             }
             if (m.kind == 'screenshot' && m.imageBase64 != null && m.imageBase64!.isNotEmpty) {
+              final timeStr = '${m.ts.hour.toString().padLeft(2, '0')}:${m.ts.minute.toString().padLeft(2, '0')}';
               return Align(
                 alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Stack(
+                  clipBehavior: Clip.none,
                   children: [
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         border: Border.all(color: context.themeColors.surfaceBorder),
                         borderRadius: BorderRadius.circular(12),
@@ -105,46 +111,63 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Screenshot (${m.ts.toIso8601String().substring(11, 19)})',
-                              style: Theme.of(context).textTheme.bodySmall),
-                          const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () {
                               Navigator.of(context).push(MaterialPageRoute(
                                 builder: (_) => LightboxViewer(base64Images: [m.imageBase64!]),
                               ));
                             },
-                            child: _ZoomableBase64Image(base64Data: m.imageBase64!),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: SizedBox(
+                                width: 50,
+                                height: 50,
+                                child: FittedBox(
+                                  fit: BoxFit.cover,
+                                  child: Image.memory(
+                                    const Base64Decoder().convert(m.imageBase64!),
+                                    gaplessPlayback: true,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, right: 4),
+                            child: Text(
+                              'Screenshot  $timeStr',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    )
+                    ),
+                    if (nextMsg != null)
+                      Positioned(
+                        right: -6,
+                        bottom: 4,
+                        child: _UsageBadge(meta: nextMsg.meta ?? const {}),
+                      ),
                   ],
                 ),
               );
             }
             if (m.kind == 'usage') {
+              // Skip if already attached as badge to previous message
+              if (i > 0) {
+                final prevGroup = groups[i - 1];
+                if (prevGroup.length == 1 && prevGroup.first.kind == 'screenshot') {
+                  return const SizedBox.shrink();
+                }
+              }
               return Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: context.themeColors.usageFill,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: context.themeColors.usageBorder),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('📈'),
-                      const SizedBox(width: 6),
-                      Text(
-                        m.text ?? '',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: _UsageBadge(meta: m.meta ?? const {}),
                 ),
               );
             }
@@ -230,7 +253,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
               if (isThinking || m.text == null || m.text!.isEmpty) return bubble;
               return _CopyableHover(text: m.text!, child: bubble);
             }
-            final bubble = _MessageBubble(role: m.role, text: m.text ?? '');
+            final bubble = _MessageBubble(role: m.role, text: m.text ?? '', ts: m.ts);
             if ((m.text ?? '').isEmpty) return bubble;
             return _CopyableHover(text: m.text!, child: bubble);
           },
@@ -564,25 +587,44 @@ class _CopyableHoverState extends State<_CopyableHover> {
 class _MessageBubble extends StatelessWidget {
   final String role;
   final String text;
-  const _MessageBubble({required this.role, required this.text});
+  final DateTime ts;
+  const _MessageBubble({required this.role, required this.text, required this.ts});
 
   @override
   Widget build(BuildContext context) {
     final isUser = role == 'user';
+    final timeStr = '${ts.hour.toString().padLeft(2, '0')}:${ts.minute.toString().padLeft(2, '0')}';
+    final timeColor = isUser
+        ? Colors.white.withValues(alpha: 0.6)
+        : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+        padding: const EdgeInsets.fromLTRB(14, 10, 10, 6),
         decoration: BoxDecoration(
           color: isUser ? context.themeColors.userBubbleBg : context.themeColors.assistantBubbleBg,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          text,
-          style: isUser
-              ? context.theme.style((t) => t.body, (c) => c.userBubbleFg)
-              : context.theme.style((t) => t.body, (c) => c.assistantBubbleFg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                text,
+                style: isUser
+                    ? context.theme.style((t) => t.body, (c) => c.userBubbleFg)
+                    : context.theme.style((t) => t.body, (c) => c.assistantBubbleFg),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              timeStr,
+              style: TextStyle(fontSize: 10, color: timeColor),
+            ),
+          ],
         ),
       ),
     );
@@ -619,54 +661,47 @@ class _MessageBubble extends StatelessWidget {
   return ('🔧', context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
 }
 
-class _ZoomableBase64Image extends StatefulWidget {
-  final String base64Data;
-  const _ZoomableBase64Image({required this.base64Data});
-
-  @override
-  State<_ZoomableBase64Image> createState() => _ZoomableBase64ImageState();
-}
-
-class _ZoomableBase64ImageState extends State<_ZoomableBase64Image> {
-  bool zoomed = false;
+class _UsageBadge extends StatelessWidget {
+  final Map<String, dynamic> meta;
+  const _UsageBadge({required this.meta});
 
   @override
   Widget build(BuildContext context) {
-    final bytes = const Base64Decoder().convert(widget.base64Data);
-    final img = Image.memory(bytes, gaplessPlayback: true);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: zoomed
-                ? InteractiveViewer(
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: img,
-                  )
-                : SizedBox(
-                    width: 150,
-                    height: 150,
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: img,
-                    ),
-                  ),
+    final inTok = meta['inputTokens'] ?? 0;
+    final outTok = meta['outputTokens'] ?? 0;
+    final inUsd = (meta['inputUsd'] as num?)?.toDouble() ?? 0.0;
+    final outUsd = (meta['outputUsd'] as num?)?.toDouble() ?? 0.0;
+    final totalUsd = (meta['totalUsd'] as num?)?.toDouble() ?? (inUsd + outUsd);
+    final totalTok = (inTok is int ? inTok : 0) + (outTok is int ? outTok : 0);
+
+    return Tooltip(
+      richMessage: TextSpan(
+        style: const TextStyle(fontSize: 12, height: 1.5),
+        children: [
+          const TextSpan(text: 'Input:  ', style: TextStyle(fontWeight: FontWeight.w600)),
+          TextSpan(text: '$inTok tokens  \$${inUsd.toStringAsFixed(6)}\n'),
+          const TextSpan(text: 'Output: ', style: TextStyle(fontWeight: FontWeight.w600)),
+          TextSpan(text: '$outTok tokens  \$${outUsd.toStringAsFixed(6)}\n'),
+          const TextSpan(text: 'Total:  ', style: TextStyle(fontWeight: FontWeight.w600)),
+          TextSpan(text: '$totalTok tokens  \$${totalUsd.toStringAsFixed(6)}'),
+        ],
+      ),
+      waitDuration: const Duration(milliseconds: 200),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          color: context.themeColors.usageFill.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: context.themeColors.usageBorder.withValues(alpha: 0.4),
           ),
         ),
-        const SizedBox(height: 6),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: () => setState(() => zoomed = !zoomed),
-            icon: Icon(zoomed ? Icons.zoom_out : Icons.zoom_in),
-            label: Text(zoomed ? 'Zoom out' : 'Zoom in'),
-          ),
+        child: Icon(
+          Icons.attach_money,
+          size: 14,
+          color: context.themeColors.usageBorder,
         ),
-      ],
+      ),
     );
   }
 }
