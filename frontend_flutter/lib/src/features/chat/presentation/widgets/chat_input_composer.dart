@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:file_picker/file_picker.dart';
@@ -71,63 +72,21 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
   // ── Clipboard paste ──
 
   Future<void> _handlePaste() async {
+    // Check if clipboard has text — if so, let TextField handle it
     try {
-      final data = await Clipboard.getData('public.png');
-      if (data != null && data.text != null) return; // text paste, ignore
+      final textData = await Clipboard.getData(Clipboard.kTextPlain);
+      if (textData != null && textData.text != null && textData.text!.isNotEmpty) return;
     } catch (_) {}
 
-    // Try reading image from clipboard via platform channel
+    // Try reading image from clipboard via pasteboard package
     try {
-      final data = await Clipboard.getData(Clipboard.kTextPlain);
-      // If it's text, let the TextField handle it normally
-      if (data != null && data.text != null && data.text!.isNotEmpty) return;
-    } catch (_) {}
-
-    // Try to get image bytes from system clipboard
-    final imageBytes = await _getClipboardImage();
-    if (imageBytes != null && imageBytes.isNotEmpty) {
-      setState(() {
-        _pendingImages.add(imageBytes);
-      });
-    }
-  }
-
-  Future<Uint8List?> _getClipboardImage() async {
-    try {
-      // Use the system pasteboard on macOS/Windows/Linux
-      if (Platform.isMacOS) {
-        final result = await Process.run('osascript', [
-          '-e',
-          'try\nset theImage to the clipboard as «class PNGf»\nreturn theImage\nend try',
-        ]);
-        if (result.exitCode == 0 && result.stdout is String) {
-          final hex = (result.stdout as String).replaceAll(RegExp(r'[^0-9a-fA-F]'), '');
-          if (hex.length > 100) {
-            return _hexToBytes(hex);
-          }
-        }
-        // Fallback: use pngpaste
-        final tmpPath = '/tmp/os_ai_clipboard_${DateTime.now().millisecondsSinceEpoch}.png';
-        final pasteResult = await Process.run('pngpaste', [tmpPath]);
-        if (pasteResult.exitCode == 0) {
-          final file = File(tmpPath);
-          if (await file.exists()) {
-            final bytes = await file.readAsBytes();
-            await file.delete();
-            if (bytes.isNotEmpty) return bytes;
-          }
-        }
+      final imageBytes = await Pasteboard.image;
+      if (imageBytes != null && imageBytes.isNotEmpty) {
+        setState(() {
+          _pendingImages.add(imageBytes);
+        });
       }
     } catch (_) {}
-    return null;
-  }
-
-  Uint8List _hexToBytes(String hex) {
-    final result = Uint8List(hex.length ~/ 2);
-    for (var i = 0; i < hex.length; i += 2) {
-      result[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
-    }
-    return result;
   }
 
   void _removeImage(int index) {
