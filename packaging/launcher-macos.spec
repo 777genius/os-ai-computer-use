@@ -54,7 +54,7 @@ hiddenimports = [
     'os_ai_backend', 'os_ai_backend.app',
     'os_ai_llm', 'os_ai_llm_anthropic', 'os_ai_llm_openai',
     # Provider clients
-    'anthropic', 'httpx', 'anyio',
+    'anthropic', 'openai', 'httpx', 'anyio',
 ]
 
 a = Analysis(
