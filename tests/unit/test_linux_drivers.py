@@ -114,6 +114,7 @@ class TestDetectScale:
         monkeypatch.setenv("GDK_SCALE", "-2")
         with caplog.at_level(logging.WARNING, logger="os_ai"):
             assert self._call() == 1.0
+        assert "Could not parse GDK_SCALE" in caplog.text
 
     def test_empty_string(self, monkeypatch):
         monkeypatch.setenv("GDK_SCALE", "")
@@ -182,3 +183,128 @@ class TestParseKeyComboAliases:
     def test_enter_return_aliases(self):
         assert self._parse("enter") == ["enter"]
         assert self._parse("return") == ["enter"]
+
+
+# --------------- defaults.py: scroll fallback, drag steps ---------------
+
+
+class TestDefaultsScrollFallback:
+    """Test PyAutoGUIMouse.scroll() hscroll→shift+scroll fallback."""
+
+    def test_horizontal_scroll_uses_hscroll(self):
+        from os_ai_os.defaults import PyAutoGUIMouse
+        mouse = PyAutoGUIMouse()
+        calls = []
+        with patch("pyautogui.hscroll", side_effect=lambda n: calls.append(("hscroll", n))):
+            mouse.scroll(dx=3)
+        assert calls == [("hscroll", 3)]
+
+    def test_horizontal_scroll_fallback_shift(self):
+        from os_ai_os.defaults import PyAutoGUIMouse
+        mouse = PyAutoGUIMouse()
+        calls = []
+        with patch("pyautogui.hscroll", side_effect=AttributeError), \
+             patch("pyautogui.keyDown", side_effect=lambda k: calls.append(("kd", k))), \
+             patch("pyautogui.scroll", side_effect=lambda n: calls.append(("scroll", n))), \
+             patch("pyautogui.keyUp", side_effect=lambda k: calls.append(("ku", k))):
+            mouse.scroll(dx=5)
+        assert calls == [("kd", "shift"), ("scroll", 5), ("ku", "shift")]
+
+    def test_vertical_scroll(self):
+        from os_ai_os.defaults import PyAutoGUIMouse
+        mouse = PyAutoGUIMouse()
+        calls = []
+        with patch("pyautogui.scroll", side_effect=lambda n: calls.append(("scroll", n))):
+            mouse.scroll(dy=-3)
+        assert calls == [("scroll", -3)]
+
+
+class TestDefaultsDragSteps:
+    """Test PyAutoGUIMouse.drag() produces correct number of intermediate moves."""
+
+    def test_drag_single_step(self):
+        from os_ai_os.defaults import PyAutoGUIMouse
+        mouse = PyAutoGUIMouse()
+        moves = []
+        with patch("pyautogui.moveTo", side_effect=lambda x, y, **kw: moves.append((x, y))), \
+             patch("pyautogui.mouseDown"), \
+             patch("pyautogui.mouseUp"):
+            mouse.drag((0, 0), (100, 100), steps=1)
+        # start move + 1 end move
+        assert moves == [(0, 0), (100, 100)]
+
+    def test_drag_three_steps(self):
+        from os_ai_os.defaults import PyAutoGUIMouse
+        mouse = PyAutoGUIMouse()
+        moves = []
+        with patch("pyautogui.moveTo", side_effect=lambda x, y, **kw: moves.append((x, y))), \
+             patch("pyautogui.mouseDown"), \
+             patch("pyautogui.mouseUp"):
+            mouse.drag((0, 0), (300, 300), steps=3)
+        # start + 3 intermediate moves (at 1/3, 2/3, 3/3)
+        assert len(moves) == 4  # 1 start + 3 steps
+        assert moves[0] == (0, 0)
+        assert moves[-1] == (300, 300)
+        assert moves[1] == (100, 100)  # 1/3
+        assert moves[2] == (200, 200)  # 2/3
+
+
+# --------------- make_drivers() assembly ---------------
+
+
+class TestMakeDriversAssembly:
+    """Test that make_drivers() returns correctly assembled PlatformDrivers."""
+
+    def test_make_drivers_returns_platform_drivers(self, monkeypatch):
+        monkeypatch.setenv("DISPLAY", ":0")
+        monkeypatch.delenv("GDK_SCALE", raising=False)
+        with patch("shutil.which", return_value="/usr/bin/scrot"):
+            from os_ai_os_linux.drivers import make_drivers
+            drv = make_drivers()
+
+        from os_ai_os.platform.drivers import PlatformDrivers
+        assert isinstance(drv, PlatformDrivers)
+
+    def test_make_drivers_has_all_components(self, monkeypatch):
+        monkeypatch.setenv("DISPLAY", ":0")
+        monkeypatch.delenv("GDK_SCALE", raising=False)
+        with patch("shutil.which", return_value="/usr/bin/scrot"):
+            from os_ai_os_linux.drivers import make_drivers
+            drv = make_drivers()
+
+        assert drv.mouse is not None
+        assert drv.keyboard is not None
+        assert drv.screen is not None
+        assert drv.overlay is not None
+        assert drv.sound is not None
+        assert drv.permissions is not None
+        assert drv.capabilities is not None
+
+    def test_make_drivers_capabilities_values(self, monkeypatch):
+        monkeypatch.setenv("DISPLAY", ":0")
+        monkeypatch.setenv("GDK_SCALE", "2")
+        with patch("shutil.which", return_value="/usr/bin/scrot"):
+            from os_ai_os_linux.drivers import make_drivers
+            drv = make_drivers()
+
+        assert drv.capabilities.supports_synthetic_input is True
+        assert drv.capabilities.supports_click_through_overlay is False
+        assert drv.capabilities.dpi_scale == 2.0
+        assert drv.capabilities.screen_recording_available is True
+
+    def test_make_drivers_no_scrot_sets_screen_recording_false(self, monkeypatch):
+        monkeypatch.setenv("DISPLAY", ":0")
+        with patch("shutil.which", return_value=None):
+            from os_ai_os_linux.drivers import make_drivers
+            drv = make_drivers()
+
+        assert drv.capabilities.screen_recording_available is False
+
+    def test_make_drivers_uses_linux_permissions(self, monkeypatch):
+        monkeypatch.setenv("DISPLAY", ":0")
+        with patch("shutil.which", return_value="/usr/bin/scrot"):
+            from os_ai_os_linux.drivers import make_drivers, LinuxPermissions
+            drv = make_drivers()
+
+        assert isinstance(drv.permissions, LinuxPermissions)
+
