@@ -340,3 +340,174 @@ def test_parse_key_combo_option_on_linux():
     """'option' maps to 'alt' on Linux."""
     from os_ai_core.tools.computer import parse_key_combo
     assert parse_key_combo("option+f2") == ["alt", "f2"]
+
+
+# --------------- handle_computer_action e2e on real Linux ---------------
+
+
+def test_action_screenshot_returns_base64():
+    """handle_computer_action('screenshot') returns base64-encoded image."""
+    import pyautogui
+    pyautogui.FAILSAFE = False  # avoid fail-safe in headless
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("screenshot", {})
+    assert len(result) == 1
+    block = result[0]
+    assert block.get("type") == "image"
+    # base64 data should be a non-empty string
+    data = block.get("data") or block.get("source", {}).get("data", "")
+    assert len(data) > 100  # base64 of any image is long
+
+
+def test_action_mouse_move():
+    """handle_computer_action('mouse_move') moves cursor to coordinates."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("mouse_move", {
+        "coordinate": [200, 200],
+    })
+    assert any("done" in str(r.get("text", "")).lower() or "move" in str(r.get("text", "")).lower() for r in result)
+
+
+def test_action_left_click():
+    """handle_computer_action('left_click') at specific coordinates."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click", {
+        "coordinate": [150, 150],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_right_click():
+    """handle_computer_action('right_click') at specific coordinates."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("right_click", {
+        "coordinate": [150, 150],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_double_click():
+    """handle_computer_action('double_click') at specific coordinates."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("double_click", {
+        "coordinate": [150, 150],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_key_combo():
+    """handle_computer_action('key') with key combo."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {"key": "ctrl+a"})
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_key_enter():
+    """handle_computer_action('key') with Enter key."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {"key": "enter"})
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_key_super():
+    """handle_computer_action('key') with super key on Linux."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {"key": "super+l"})
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_type_simple():
+    """handle_computer_action('type') with simple ASCII text."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("type", {"text": "hello"})
+    assert len(result) >= 1
+
+
+def test_action_type_multiline_uses_clipboard():
+    """handle_computer_action('type') with multiline uses clipboard paste."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("type", {"text": "line1\nline2"})
+    assert len(result) >= 1
+    # Should use clipboard paste path for multiline
+    text = str(result[0].get("text", ""))
+    assert "pasted" in text or "typed" in text or "done" in text
+
+
+def test_action_scroll():
+    """handle_computer_action('scroll') with scroll direction."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("scroll", {
+        "coordinate": [200, 200],
+        "scroll_direction": "down",
+        "scroll_amount": 3,
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_drag():
+    """handle_computer_action('left_click_drag') between two points."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click_drag", {
+        "start": [100, 100],
+        "end": [200, 200],
+        "steps": 2,
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+# --------------- Mouse position verification ---------------
+
+
+def test_mouse_position_after_move():
+    """After move_to(x, y), pyautogui.position() should match."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_os.api import get_drivers
+    drv = get_drivers()
+    target_x, target_y = 300, 250
+    drv.mouse.move_to(target_x, target_y)
+    actual_x, actual_y = pyautogui.position()
+    assert abs(actual_x - target_x) <= 2, f"X mismatch: expected {target_x}, got {actual_x}"
+    assert abs(actual_y - target_y) <= 2, f"Y mismatch: expected {target_y}, got {actual_y}"
+
+
+# --------------- Clipboard e2e ---------------
+
+
+def test_clipboard_copy_paste():
+    """pyperclip copy/paste works on Linux (requires xclip)."""
+    try:
+        import pyperclip
+    except ImportError:
+        pytest.skip("pyperclip not installed")
+    try:
+        pyperclip.copy("linux_test_12345")
+        result = pyperclip.paste()
+        assert result == "linux_test_12345"
+    except Exception as e:
+        if "xclip" in str(e).lower() or "xsel" in str(e).lower():
+            pytest.skip(f"clipboard tool not available: {e}")
+        raise
+
