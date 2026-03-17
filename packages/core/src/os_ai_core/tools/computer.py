@@ -10,13 +10,20 @@ import logging
 
 try:
     import pyautogui
-except KeyError:
-    # On Linux, pyautogui's X11 backend does Display(os.environ['DISPLAY'])
-    # at module level. Without DISPLAY env var, it raises KeyError.
-    if sys.platform.startswith("linux"):
+except (KeyError, Exception) as _pyautogui_err:
+    # On Linux, pyautogui's X11 backend (_pyautogui_x11.py:182) does
+    #   _display = Display(os.environ['DISPLAY'])
+    # at module level. This raises:
+    #   KeyError — if DISPLAY env var is not set
+    #   Xlib.error.DisplayConnectionError — if X server is unreachable
+    if sys.platform.startswith("linux") and (
+        isinstance(_pyautogui_err, KeyError)
+        or "display" in str(_pyautogui_err).lower()
+    ):
         raise ImportError(
-            "pyautogui requires X11 display on Linux (DISPLAY env var not set). "
-            "If using Wayland, ensure XWayland is enabled."
+            "pyautogui requires X11 display on Linux. "
+            "Ensure DISPLAY is set and X server is running. "
+            "If using Wayland, enable XWayland."
         ) from None
     raise
 

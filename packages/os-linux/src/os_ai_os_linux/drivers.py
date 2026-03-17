@@ -53,12 +53,18 @@ class LinuxPermissions:
 
 def _detect_scale() -> float:
     """Detect Linux display scale via GDK_SCALE env var."""
+    raw = os.environ.get("GDK_SCALE", "")
+    if not raw:
+        return 1.0
+    # Strip non-numeric suffix (e.g., "2x" → "2")
+    cleaned = raw.strip().rstrip("xX")
     try:
-        val = os.environ.get("GDK_SCALE")
-        if val:
-            return float(val)
+        scale = float(cleaned)
+        if scale > 0:
+            return scale
     except (ValueError, TypeError):
         pass
+    _log.warning("Could not parse GDK_SCALE=%r, using scale=1.0", raw)
     return 1.0
 
 
