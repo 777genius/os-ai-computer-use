@@ -197,6 +197,37 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
             }
             if (m.kind == 'thought') {
               final isThinking = (m.meta?['thinking'] as bool?) == true;
+              if (isThinking) {
+                // Thinking indicator: plain text with spinner
+                final bubble = Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: context.themeColors.assistantBubbleBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: context.themeColors.surfaceBorder),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          m.text ?? '',
+                          softWrap: true,
+                          style: context.theme.style((t) => t.bodySmall, (c) => c.assistantBubbleFg),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: context.themeColors.assistantBubbleFg)),
+                    ],
+                  ),
+                );
+                return _withUsageBadge(bubble, nextUsage);
+              }
+              // Completed thought: render with markdown
               final bubble = Container(
                 margin: const EdgeInsets.symmetric(vertical: 6),
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
@@ -208,24 +239,18 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          m.text ?? '',
-                          softWrap: true,
-                          style: context.theme.style((t) => t.bodySmall, (c) => c.assistantBubbleFg),
-                        ),
-                      ),
-                      if (isThinking) ...[
-                        const SizedBox(width: 8),
-                        SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: context.themeColors.assistantBubbleFg)),
-                      ]
-                    ],
-                  ),
-                );
-              if (isThinking || m.text == null || m.text!.isEmpty) return _withUsageBadge(bubble, nextUsage);
+                  children: [
+                    Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: (m.text != null && m.text!.isNotEmpty)
+                          ? MarkdownMessage(text: m.text!)
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
+              );
+              if (m.text == null || m.text!.isEmpty) return _withUsageBadge(bubble, nextUsage);
               return _withUsageBadge(bubble, nextUsage, copyText: m.text);
             }
             final bubble = _MessageBubble(role: m.role, text: m.text ?? '', ts: m.ts);
@@ -648,23 +673,53 @@ class _MessageBubble extends StatelessWidget {
         : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
     final timeStyle = TextStyle(fontSize: 10, color: timeColor);
 
+    if (isUser) {
+      // User messages: plain text with inline timestamp (original layout)
+      final textStyle = context.theme.style((t) => t.body, (c) => c.userBubbleFg);
+      const timePadding = '              ';
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 5),
+        decoration: BoxDecoration(
+          color: context.themeColors.userBubbleBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: text, style: textStyle),
+                  TextSpan(
+                    text: timePadding,
+                    style: textStyle.copyWith(color: const Color(0x00000000)),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Text(timeStr, style: timeStyle),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Assistant messages: markdown rendering
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.fromLTRB(12, 8, 8, 5),
       decoration: BoxDecoration(
-        color: isUser ? context.themeColors.userBubbleBg : context.themeColors.assistantBubbleBg,
+        color: context.themeColors.assistantBubbleBg,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isUser)
-            // User messages: plain text (no markdown rendering)
-            Text(text, style: context.theme.style((t) => t.body, (c) => c.userBubbleFg))
-          else
-            // Assistant messages: full markdown rendering
-            MarkdownMessage(text: text, isUser: false),
+          MarkdownMessage(text: text),
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(

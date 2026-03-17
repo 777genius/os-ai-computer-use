@@ -4,8 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:frontend_flutter/src/presentation/widgets/markdown/markdown_theme.dart';
 
-/// Renders markdown text with full formatting for assistant messages
-/// and minimal formatting for user messages.
+/// Renders markdown text with full formatting for assistant messages.
 class MarkdownMessage extends StatelessWidget {
   final String text;
   final bool isUser;
@@ -20,8 +19,7 @@ class MarkdownMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (text.isEmpty) return const SizedBox.shrink();
 
-    final config = buildMarkdownConfig(context, isUser: isUser);
-    final configWithLinks = config.copy(configs: [
+    final config = buildMarkdownConfig(context, isUser: isUser).copy(configs: [
       LinkConfig(
         style: TextStyle(
           color: isUser
@@ -36,11 +34,24 @@ class MarkdownMessage extends StatelessWidget {
       ),
     ]);
 
-    // Use MarkdownBlock (wraps in SingleChildScrollView) for selectable content
-    return MarkdownBlock(
-      data: text,
-      config: configWithLinks,
-      selectable: true,
+    // Use MarkdownGenerator directly to produce widgets,
+    // avoiding nested ScrollView / Column issues.
+    final generator = MarkdownGenerator();
+    final widgets = generator.buildWidgets(text, config: config);
+
+    if (widgets.isEmpty) {
+      return Text(
+        text,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      );
+    }
+
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: widgets,
+      ),
     );
   }
 }
