@@ -55,6 +55,9 @@ class BlurContainerViewController: NSViewController {
 class MainFlutterWindow: NSPanel {
   private var savedFrame: NSRect?
   private var windowModeChannel: FlutterMethodChannel?
+  private var hotkeyChannel: FlutterMethodChannel?
+  private var globalKeyMonitor: Any?
+  private var localKeyMonitor: Any?
 
   override func awakeFromNib() {
     let container = BlurContainerViewController()
@@ -78,29 +81,59 @@ class MainFlutterWindow: NSPanel {
     Self.swizzleFlutterViewWrapperIfNeeded()
 
     setupWindowModeChannel(messenger: container.flutterViewController.engine.binaryMessenger)
+    hotkeyChannel = FlutterMethodChannel(
+      name: "com.osai/hotkeys",
+      binaryMessenger: container.flutterViewController.engine.binaryMessenger
+    )
     RegisterGeneratedPlugins(registry: container.flutterViewController)
+
+    setupGlobalHotkeys()
 
     super.awakeFromNib()
   }
 
-  // Activate app when panel becomes key — the missing piece for first-click
-  // Pattern from Multi.app: https://multi.app/blog/nailing-the-activation-behavior-of-a-spotlight-raycast-like-command-palette
+  // Track previously active app to restore focus after our panel interaction
+  private var previousApp: NSRunningApplication?
+
   override func becomeKey() {
-    if #available(macOS 14.0, *) {
-      NSApp.activate()
-    } else {
-      NSApp.activate(ignoringOtherApps: true)
-    }
     super.becomeKey()
   }
 
-  // Intercept events before Flutter — make key + set first responder on click
+  override func resignKey() {
+    super.resignKey()
+  }
+
+  // Intercept events before Flutter — make key + activate app for Flutter,
+  // then schedule reactivation of the previous app so clicking back works immediately
   override func sendEvent(_ event: NSEvent) {
     if event.type == .leftMouseDown || event.type == .rightMouseDown {
       if !self.isKeyWindow {
+        // Remember which app was active before us
+        if let frontmost = NSWorkspace.shared.frontmostApplication,
+           frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
+          previousApp = frontmost
+        }
+
         self.makeKey()
         if let flutterView = findFlutterView(in: self.contentView) {
           self.makeFirstResponder(flutterView)
+        }
+
+        // Briefly activate our app so Flutter processes the click,
+        // then restore the previous app after a short delay
+        if #available(macOS 14.0, *) {
+          NSApp.activate()
+        } else {
+          NSApp.activate(ignoringOtherApps: true)
+        }
+
+        // After Flutter processes the click, give focus back to previous app
+        // so clicking on it won't require a double-click
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+          if let prev = self?.previousApp, self?.isKeyWindow == true {
+            prev.activate()
+            self?.previousApp = nil
+          }
         }
       }
     }
@@ -138,6 +171,51 @@ class MainFlutterWindow: NSPanel {
       class_addMethod(wrapperClass, selector, imp, "B@:@")
     } else {
       method_setImplementation(existingMethod!, imp)
+    }
+  }
+
+  /// Register global Ctrl+Esc hotkey via NSEvent monitor.
+  /// This approach works reliably on macOS Sequoia (15+) where Carbon
+  /// RegisterEventHotKey may silently fail without Accessibility permissions.
+  private func setupGlobalHotkeys() {
+    let handler: (NSEvent) -> Void = { [weak self] event in
+      // Ctrl+Esc: keyCode 53 (kVK_Escape) with Control modifier only
+      guard event.keyCode == 53,
+            event.modifierFlags.contains(.control),
+            !event.modifierFlags.contains(.command),
+            !event.modifierFlags.contains(.option),
+            !event.modifierFlags.contains(.shift)
+      else { return }
+
+      DispatchQueue.main.async {
+        self?.windowModeChannel?.invokeMethod("emergencyStop", arguments: nil)
+      }
+    }
+
+    // Global monitor: fires when app is NOT focused
+    globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler)
+
+    // Local monitor: fires when app IS focused (returns nil to not consume the event)
+    localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+      if event.keyCode == 53,
+         event.modifierFlags.contains(.control),
+         !event.modifierFlags.contains(.command),
+         !event.modifierFlags.contains(.option),
+         !event.modifierFlags.contains(.shift) {
+        handler(event)
+      }
+      return event
+    }
+  }
+
+  private func teardownGlobalHotkeys() {
+    if let monitor = globalKeyMonitor {
+      NSEvent.removeMonitor(monitor)
+      globalKeyMonitor = nil
+    }
+    if let monitor = localKeyMonitor {
+      NSEvent.removeMonitor(monitor)
+      localKeyMonitor = nil
     }
   }
 

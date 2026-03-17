@@ -542,6 +542,11 @@ class ChatRepositoryImpl implements ChatRepository {
       final label = n.replaceAll('_', ' ');
       return '${label[0].toUpperCase()}${label.substring(1)} ${_fmtCoord(c)}';
     }
+    if (n == 'left_mouse_down' || n == 'left_mouse_up') {
+      final c = meta['coordinate'];
+      final label = n == 'left_mouse_down' ? 'Mouse down' : 'Mouse up';
+      return '$label ${_fmtCoord(c)}';
+    }
     if (n == 'left_click_drag') {
       final s = meta['start_coordinate'] ?? meta['start'];
       final e = meta['end_coordinate'] ?? meta['end'];

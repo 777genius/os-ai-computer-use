@@ -358,6 +358,7 @@ class _ChatDropAreaState extends State<_ChatDropArea> {
           onDragExited: (_) => setState(() => _dragging = false),
           onDragDone: (details) async {
             setState(() => _dragging = false);
+            if (!mounted) return;
             final repo = context.read<ChatRepository?>();
             if (repo == null) return;
             final store = context.read<UploadStore?>();

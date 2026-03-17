@@ -23,14 +23,27 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   HotKey? _stopHotKey;
   HotKey? _overlayHotKey;
+  static const _hotkeyChannel = MethodChannel('com.osai/hotkeys');
 
   @override
   void initState() {
     super.initState();
+    _hotkeyChannel.setMethodCallHandler(_handleNativeHotkey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstRunAndEnterOverlay();
       _registerGlobalHotkeys();
     });
+  }
+
+  /// Handle hotkey calls from native macOS side (Ctrl+Esc global monitor).
+  Future<dynamic> _handleNativeHotkey(MethodCall call) async {
+    switch (call.method) {
+      case 'emergencyStop':
+        _emergencyStop();
+        return null;
+      default:
+        return null;
+    }
   }
 
   Future<void> _registerGlobalHotkeys() async {

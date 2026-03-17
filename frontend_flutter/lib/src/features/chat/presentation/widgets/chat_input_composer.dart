@@ -117,6 +117,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
       final bytes = cmp.bytes;
       if (bytes.length > maxBytes) { store?.fail(name, 'too large'); continue; }
       final preview = await makePreviewBase64(bytes);
+      if (!mounted) return;
       var canceled = false;
       VoidCallback? cancelNetwork;
       store?.start(name, bytes.length, onCancel: () { canceled = true; cancelNetwork?.call(); });
@@ -130,6 +131,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
         batchSize: total,
         batchIndex: idx,
       );
+      if (!mounted) return;
       store?.complete(name);
     }
   }
@@ -145,6 +147,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
 
     // Upload pending images first
     await _uploadPendingImages();
+    if (!mounted) return;
 
     if (txt.isNotEmpty) {
       await store.sendTask(txt);
@@ -166,13 +169,13 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
       res = await FilePicker.platform.pickFiles(
         withData: true,
         allowMultiple: true,
-        type: FileType.custom,
-        allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+        type: FileType.image,
       );
     } catch (e) {
       debugPrint('FilePicker error: $e');
       return;
     }
+    if (!mounted) return;
     if (res == null || res.files.isEmpty) return;
     final repo = context.read<ChatRepository?>();
     if (repo == null) return;
@@ -195,11 +198,13 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
           }
         } catch (_) {}
       }
+      if (!mounted) return;
       if (source == null) continue;
       final cmp = await compressIfNeeded(source);
       final bytes = cmp.bytes;
       if (bytes.length > maxBytes) { store?.fail(name, 'too large'); continue; }
       final preview = await makePreviewBase64(bytes);
+      if (!mounted) return;
       var canceled = false;
       VoidCallback? cancelNetwork;
       store?.start(name, bytes.length, onCancel: () { canceled = true; cancelNetwork?.call(); }, previewBytes: bytes.length > 2 * 1024 * 1024 ? null : bytes);
@@ -214,6 +219,7 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
         batchSize: total,
         batchIndex: idx,
       );
+      if (!mounted) return;
       store?.complete(name);
     }
   }

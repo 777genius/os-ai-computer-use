@@ -149,6 +149,10 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
               if (actionName.toLowerCase() == 'screenshot') {
                 return const SizedBox.shrink();
               }
+              // Skip tool_result confirmations (e.g. {"text": "ok"})
+              if (actionName.toLowerCase() == 'tool_result' || actionName.isEmpty) {
+                return const SizedBox.shrink();
+              }
               final status = (m.meta?['status'] as String? ?? '').toLowerCase();
               final badge = _actionBadgeFor(context, actionName);
               final Color border = badge.$2;
@@ -351,6 +355,9 @@ List<List<dynamic>> _groupMessages(List messages) {
       final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
       final actionName = ((inner['action'] as String?) ?? '').toLowerCase();
       if (actionName == 'screenshot') continue;
+      // Skip tool_result confirmations
+      final metaName = ((meta['name'] as String?) ?? '').toLowerCase();
+      if (actionName == 'tool_result' || metaName == 'tool_result' || actionName.isEmpty) continue;
 
       currentActions ??= [];
       currentActions.add(m);
@@ -381,15 +388,17 @@ class _ActionGroupState extends State<_ActionGroup> {
   Widget build(BuildContext context) {
     final count = widget.actions.length;
     final colorScheme = Theme.of(context).colorScheme;
+    final dominantAction = _dominantActionName();
+    final badge = _actionBadgeFor(context, dominantAction);
 
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: context.themeColors.actionPurpleFill,
+          color: badge.$3,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: context.themeColors.actionPurpleBorder),
+          border: Border.all(color: badge.$2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,7 +412,7 @@ class _ActionGroupState extends State<_ActionGroup> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.build, size: 16, color: context.themeColors.actionPurpleBorder),
+                    Icon(badge.$1, size: 16, color: badge.$2),
                     const SizedBox(width: 6),
                     Text(
                       '$count actions',
@@ -463,12 +472,28 @@ class _ActionGroupState extends State<_ActionGroup> {
     return counts.entries.map((e) => '${e.value}× ${e.key}').join(', ');
   }
 
+  String _dominantActionName() {
+    final counts = <String, int>{};
+    for (final m in widget.actions) {
+      final meta = (m.meta ?? const {});
+      final inner = (meta['meta'] is Map) ? (meta['meta'] as Map) : const {};
+      final action = ((inner['action'] as String?) ?? '').toLowerCase();
+      if (action.isNotEmpty) {
+        counts[action] = (counts[action] ?? 0) + 1;
+      }
+    }
+    if (counts.isEmpty) return '';
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
   String _shortLabel(String action) {
     switch (action.toLowerCase()) {
       case 'left_click': return 'click';
       case 'double_click': return 'dblclick';
       case 'right_click': return 'rclick';
       case 'left_click_drag': return 'drag';
+      case 'left_mouse_down': return 'mousedown';
+      case 'left_mouse_up': return 'mouseup';
       case 'mouse_move': return 'move';
       case 'type': return 'type';
       case 'key': case 'hold_key': return 'key';
@@ -529,6 +554,7 @@ class _ActionRow extends StatelessWidget {
     if (action == 'left_click' || action == 'middle_click') return Icon(Icons.ads_click, size: s, color: color);
     if (action == 'double_click' || action == 'triple_click') return Icon(Icons.touch_app, size: s, color: color);
     if (action == 'right_click') return Icon(Icons.more_horiz, size: s, color: color);
+    if (action == 'left_mouse_down' || action == 'left_mouse_up') return Icon(Icons.ads_click, size: s, color: color);
     if (action.contains('drag')) return Icon(Icons.open_with, size: s, color: color);
     if (action == 'mouse_move') return Icon(Icons.near_me, size: s, color: color);
     if (action == 'type') return Icon(Icons.keyboard, size: s, color: color);
@@ -548,6 +574,8 @@ class _ActionRow extends StatelessWidget {
     if (action == 'double_click') return 'Double click ${_coord(inner['coordinate'])}';
     if (action == 'triple_click') return 'Triple click ${_coord(inner['coordinate'])}';
     if (action == 'right_click') return 'Right click ${_coord(inner['coordinate'])}';
+    if (action == 'left_mouse_down') return 'Mouse down ${_coord(inner['coordinate'])}';
+    if (action == 'left_mouse_up') return 'Mouse up ${_coord(inner['coordinate'])}';
     if (action == 'left_click_drag') {
       return 'Drag ${_coord(inner['start_coordinate'] ?? inner['start'])} → ${_coord(inner['end_coordinate'] ?? inner['end'])}';
     }
@@ -665,6 +693,9 @@ class _MessageBubble extends StatelessWidget {
     return (Icons.near_me, context.themeColors.actionIndigoBorder, context.themeColors.actionIndigoFill);
   }
   if (n == 'left_click' || n == 'double_click' || n == 'triple_click' || n == 'right_click' || n == 'middle_click') {
+    return (Icons.ads_click, context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
+  }
+  if (n == 'left_mouse_down' || n == 'left_mouse_up') {
     return (Icons.ads_click, context.themeColors.actionPurpleBorder, context.themeColors.actionPurpleFill);
   }
   if (n == 'left_click_drag') {
