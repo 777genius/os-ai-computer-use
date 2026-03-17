@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
 import 'package:frontend_flutter/src/features/chat/domain/entities/connection_status.dart';
 import 'package:frontend_flutter/src/features/chat/domain/repositories/chat_repository.dart';
+import 'package:frontend_flutter/src/features/chat/presentation/screen/chat_list_overlay_screen.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/utils/image_compress.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_input_composer.dart';
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_list_sidebar.dart';
@@ -244,7 +245,7 @@ class _AppBarTitle extends StatelessWidget {
         child: statusDot,
       );
 
-      // In overlay mode: just title + status, no usage line
+      // In overlay mode: title + status + chat buttons
       if (isOverlay) {
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -270,6 +271,28 @@ class _AppBarTitle extends StatelessWidget {
                 ),
               );
             }),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Chat list',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ChatListOverlayScreen()),
+                );
+              },
+              icon: Icon(Icons.menu, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+            IconButton(
+              tooltip: 'New chat',
+              onPressed: () {
+                final s = context.read<ChatStore?>();
+                s?.createNewChat();
+              },
+              icon: Icon(Icons.add, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
           ],
         );
       }

@@ -22,6 +22,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
   final ScrollController _ctrl = ScrollController();
   bool _atBottom = true;
   int _lastLen = 0;
+  String? _lastChatId;
 
   @override
   void initState() {
@@ -47,6 +48,25 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
     if (!_ctrl.hasClients) return;
     final target = _ctrl.position.maxScrollExtent;
     _ctrl.animateTo(target, duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+    // Re-check after animation — maxScrollExtent may have changed during layout
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted || !_ctrl.hasClients) return;
+      if (_ctrl.position.pixels < _ctrl.position.maxScrollExtent - 1) {
+        _ctrl.jumpTo(_ctrl.position.maxScrollExtent);
+      }
+    });
+  }
+
+  void _jumpToBottom() {
+    if (!_ctrl.hasClients) return;
+    _ctrl.jumpTo(_ctrl.position.maxScrollExtent);
+    // Layout may still settle — verify in next frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_ctrl.hasClients) return;
+      if (_ctrl.position.pixels < _ctrl.position.maxScrollExtent - 1) {
+        _ctrl.jumpTo(_ctrl.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
@@ -55,11 +75,21 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
       builder: (_) {
         final store = context.read<ChatStore?>();
         final len = store?.messages.length ?? 0;
+        final chatId = store?.activeChatId;
 
-        // автопрокрутка только если пользователь в самом низу и пришли новые сообщения
+        // Chat switched — always jump to bottom
+        final chatSwitched = chatId != _lastChatId;
+        if (chatSwitched) {
+          _lastChatId = chatId;
+          _atBottom = true;
+        }
+
+        // автопрокрутка: при смене чата — jump, при новых сообщениях — animate
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          if (_atBottom && _lastLen != len) {
+          if (chatSwitched) {
+            _jumpToBottom();
+          } else if (_atBottom && _lastLen != len) {
             _scrollToBottom();
           }
           _lastLen = len;

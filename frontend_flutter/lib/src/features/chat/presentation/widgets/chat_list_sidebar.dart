@@ -7,21 +7,36 @@ import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
 class ChatListSidebar extends StatelessWidget {
   final void Function()? onCreateChat;
   final void Function()? onOpenUsage;
-  const ChatListSidebar({super.key, this.onCreateChat, this.onOpenUsage});
+  final void Function()? onChatTapped;
+  final double? width;
+  final bool showHeader;
+  final bool showBorder;
+  const ChatListSidebar({
+    super.key,
+    this.onCreateChat,
+    this.onOpenUsage,
+    this.onChatTapped,
+    this.width,
+    this.showHeader = true,
+    this.showBorder = true,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgAlpha = isDark ? 0.47 : 0.2;
     return Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
-        border: Border(right: BorderSide(color: context.themeColors.surfaceBorder)),
-      ),
+      width: width ?? 280,
+      decoration: showBorder
+          ? BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
+              border: Border(right: BorderSide(color: context.themeColors.surfaceBorder)),
+            )
+          : null,
       child: Column(
         children: [
-          Padding(
+          if (showHeader)
+            Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
@@ -61,7 +76,10 @@ class ChatListSidebar extends StatelessWidget {
                   return _ChatListItem(
                     session: s,
                     isActive: isActive,
-                    onTap: () => store?.setActiveChat(s.id),
+                    onTap: () {
+                      store?.setActiveChat(s.id);
+                      onChatTapped?.call();
+                    },
                     onRename: (newTitle) => store?.renameChat(s.id, newTitle),
                     onDelete: () => store?.removeChat(s.id),
                   );

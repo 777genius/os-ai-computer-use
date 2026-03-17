@@ -87,6 +87,12 @@ class MainFlutterWindow: NSPanel {
     )
     RegisterGeneratedPlugins(registry: container.flutterViewController)
 
+    // Request Accessibility permission (shows system prompt if not granted)
+    let trusted = AXIsProcessTrustedWithOptions(
+      [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+    )
+    NSLog("Accessibility permission: %@", trusted ? "granted" : "not granted (prompt shown)")
+
     setupGlobalHotkeys()
 
     super.awakeFromNib()
@@ -156,6 +162,7 @@ class MainFlutterWindow: NSPanel {
       let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
       guard event.keyCode == 53, flags == .control else { return }
 
+      NSLog("Global hotkey Ctrl+Esc triggered")
       DispatchQueue.main.async {
         self?.hotkeyChannel?.invokeMethod("emergencyStop", arguments: nil)
       }
@@ -163,6 +170,7 @@ class MainFlutterWindow: NSPanel {
 
     // Global monitor: fires when app is NOT focused (requires Accessibility permission)
     globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler)
+    NSLog("Global key monitor registered (requires Accessibility permission)")
 
     // Local monitor: fires when app IS focused (no special permissions needed)
     localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
