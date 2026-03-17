@@ -76,12 +76,11 @@ Local agent for desktop automation with **multi-provider AI support**. Currently
 
 What this project is:
 - A **multi-provider** Computer Use agent (OpenAI + Anthropic) with a stable tool interface
-- An OS-agnostic execution layer using ports/drivers (macOS and Windows today)
+- An OS-agnostic execution layer using ports/drivers (macOS, Windows, and Linux)
 - A CLI you can bundle into a single executable for local use
 
 What it is not (yet):
 - A remote SaaS; this is a local agent
-- A finished set of drivers for every OS/desktop (Linux Wayland has limits for synthetic input)
 
 Highlights:
 - **OpenAI GPT-5.4** with batched actions and `previous_response_id` for efficient multi-step workflows
@@ -98,11 +97,16 @@ See provider architecture in `docs/architecture-universal-llm.md`, OS ports/driv
 ## Installation & Setup
 
 Requirements:
-- macOS 13+ or Windows 10/11
+- macOS 13+ or Windows 10/11 or Linux (X11/XWayland)
 - Python 3.12+
 - API key for at least one provider:
   - **OpenAI**: `OPENAI_API_KEY` (for GPT-5.4 Computer Use)
   - **Anthropic**: `ANTHROPIC_API_KEY` (for Claude Computer Use)
+
+Linux system dependencies (if applicable):
+```bash
+sudo apt-get install -y scrot xdotool xclip python3-tk
+```
 
 Install:
 ```bash
@@ -127,7 +131,7 @@ Grant permissions to Terminal/iTerm and your venv Python under: Accessibility, I
 ## Quick start
 
 Requirements:
-- macOS 13+ or Windows 10/11 (unit tests on any OS; GUI tests macOS/self-hosted Windows)
+- macOS 13+ or Windows 10/11 or Linux (X11/XWayland; unit tests on any OS; GUI tests macOS/self-hosted Windows/Linux)
 - Python 3.12+
 - API key: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`
 
@@ -255,6 +259,7 @@ flutter run -d macos
 # Or run on other platforms
 # flutter run -d chrome   # web
 # flutter run -d windows  # Windows
+# flutter run -d linux    # Linux
 ```
 
 Frontend config (in code):
@@ -314,7 +319,7 @@ See `docs/architecture-universal-llm.md` for details.
 - Clicks with modifiers: `modifiers: "cmd+shift"` for click/down/up
 - Drag control: multi-point paths for drawing, `hold_before_ms`, `hold_after_ms`, `steps`
 - Keyboard input: `key`, `hold_key`; cross-platform key mapping (cmd/ctrl/win/alt/option)
-- Screenshots: Quartz (macOS) or PyAutoGUI fallback; optional downscale for model display
+- Screenshots: Quartz (macOS), scrot (Linux), or PyAutoGUI fallback; optional downscale for model display
 - Logging and cost: per-iteration and total usage/cost with retry logic
 - Provider-aware cost estimation (GPT-5.4, Claude Sonnet 4.6, Opus 4.6, o4-mini, Haiku)
 
@@ -329,7 +334,11 @@ See `docs/architecture-universal-llm.md` for details.
   - Drivers for mouse/keyboard/screen via PyAutoGUI; overlay/sound are no-ops baseline.
   - Unit contract tests exist; for GUI tests use a self-hosted Windows runner (see `docs/windows-integration-testing.md`).
   - Single-file CLI bundle via `make build-windows-bundle` (build on Windows).
-- Linux: supported but not yet tested in production. X11 works with synthetic input (XTest); Wayland has limitations for synthetic input. Contributions and testing feedback welcome.
+- Linux (supported, X11):
+  - Drivers for mouse/keyboard/screen via PyAutoGUI (X11 backend); overlay/sound are no-ops.
+  - Requires X11 display (XWayland works). Pure Wayland without XWayland is not yet supported.
+  - System dependencies: `scrot` (screenshots), `xdotool`, `xclip` (clipboard), `python3-tk`.
+  - Unit contract tests and CI with xvfb. Single-file bundle via PyInstaller.
 
 ---
 
@@ -467,6 +476,7 @@ Apache License 2.0. Preserve `NOTICE` when distributing.
 ## Troubleshooting
 
 - Cursor/keyboard don't work (macOS): grant permissions in System Settings → Privacy & Security (Accessibility, Input Monitoring, Screen Recording) for Terminal and current Python.
+- Linux: no display error: ensure X11 is running (`echo $DISPLAY`). Under Wayland, XWayland must be enabled. Install deps: `sudo apt-get install scrot xdotool xclip python3-tk`.
 - Integration tests skipped: restart terminal, ensure same interpreter (`which python`, `python -c 'import sys; print(sys.executable)'`).
 - Screenshots empty/missing overlay: enable Screen Recording; check screenshot mode settings.
 

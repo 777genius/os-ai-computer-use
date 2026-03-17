@@ -23,6 +23,8 @@ dependencies = [
   "os_ai_os_macos>=0.1.0; platform_system == \"Darwin\"",
   # Windows drivers for Windows
   "os_ai_os_windows>=0.1.0; platform_system == \"Windows\"",
+  # Linux drivers for Linux
+  "os_ai_os_linux>=0.1.0; platform_system == \"Linux\"",
 ]
 
 [tool.uv]

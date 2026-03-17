@@ -100,6 +100,8 @@ jobs:
       - name: Create TAR.GZ archive
         working-directory: dist
         run: |
+          chmod +x os_ai/os_ai
+          cp ../packaging/os-ai.desktop os_ai/
           tar -czf OS_AI_${{ inputs.version }}_Linux.tar.gz os_ai
           ls -lh *.tar.gz
 

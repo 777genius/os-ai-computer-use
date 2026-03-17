@@ -50,6 +50,7 @@ a = Analysis(
         ROOT,
         os.path.join(ROOT, 'packages', 'core', 'src'),
         os.path.join(ROOT, 'packages', 'os', 'src'),
+        os.path.join(ROOT, 'packages', 'os-linux', 'src'),
         os.path.join(ROOT, 'packages', 'backend', 'src'),
         os.path.join(ROOT, 'packages', 'llm', 'src'),
         os.path.join(ROOT, 'packages', 'llm_anthropic', 'src'),

@@ -8,7 +8,24 @@ import time
 import base64
 import logging
 
-import pyautogui
+try:
+    import pyautogui
+except (KeyError, Exception) as _pyautogui_err:
+    # On Linux, pyautogui's X11 backend (_pyautogui_x11.py:182) does
+    #   _display = Display(os.environ['DISPLAY'])
+    # at module level. This raises:
+    #   KeyError — if DISPLAY env var is not set
+    #   Xlib.error.DisplayConnectionError — if X server is unreachable
+    if sys.platform.startswith("linux") and (
+        isinstance(_pyautogui_err, KeyError)
+        or "display" in str(_pyautogui_err).lower()
+    ):
+        raise ImportError(
+            "pyautogui requires X11 display on Linux. "
+            "Ensure DISPLAY is set and X server is running. "
+            "If using Wayland, enable XWayland."
+        ) from None
+    raise
 
 from os_ai_core.config import (
     LOGGER_NAME,
@@ -309,6 +326,7 @@ def parse_key_combo(combo: str) -> List[str]:
     _alt_key = "option" if _is_mac else "alt"
     mapping = {
         "cmd": _meta_key, "command": _meta_key,
+        "super": _meta_key, "meta": _meta_key,
         "ctrl": "ctrl", "control": "ctrl",
         "alt": _alt_key, "option": _alt_key,
         "shift": "shift",

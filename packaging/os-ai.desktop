@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=OS AI
+Comment=AI-powered desktop automation agent
+Exec=os_ai
+Icon=os_ai
+Type=Application
+Categories=Utility;Accessibility;
+Keywords=AI;automation;desktop;computer;use;
+StartupNotify=true
+Terminal=false
