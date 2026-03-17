@@ -17,6 +17,8 @@ PKG_SRC_DIRS = [
     os.path.join(PROJECT_ROOT, "packages", "llm_openai", "src"),
     os.path.join(PROJECT_ROOT, "packages", "os", "src"),
     os.path.join(PROJECT_ROOT, "packages", "os-macos", "src"),
+    os.path.join(PROJECT_ROOT, "packages", "os-linux", "src"),
+    os.path.join(PROJECT_ROOT, "packages", "os-windows", "src"),
 ]
 for p in PKG_SRC_DIRS:
     if os.path.isdir(p) and p not in sys.path:
