@@ -309,6 +309,7 @@ def parse_key_combo(combo: str) -> List[str]:
     _alt_key = "option" if _is_mac else "alt"
     mapping = {
         "cmd": _meta_key, "command": _meta_key,
+        "super": _meta_key, "meta": _meta_key,
         "ctrl": "ctrl", "control": "ctrl",
         "alt": _alt_key, "option": _alt_key,
         "shift": "shift",

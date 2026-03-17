@@ -136,3 +136,6 @@ flutter_launcher_icons:
   windows:
     generate: true
     image_path: assets/icons/robot.png
+  linux:
+    generate: true
+    image_path: assets/icons/robot.png

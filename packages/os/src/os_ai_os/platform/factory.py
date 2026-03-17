@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import platform
 from typing import Optional
 
@@ -42,6 +43,29 @@ def build_platform(explicit: Optional[str] = None) -> PlatformDrivers:
                 factory = None
         if factory is None:
             raise RuntimeError("Windows drivers not installed: install os_ai_os_windows package")
+        return factory()
+    if sysname == "linux":
+        # Pre-check: pyautogui's X11 backend does
+        #   _display = Display(os.environ['DISPLAY'])
+        # at module level (_pyautogui_x11.py:182).
+        # Without DISPLAY, import raises KeyError -- give a clear message instead.
+        if not os.environ.get("DISPLAY"):
+            wayland_hint = ""
+            if os.environ.get("WAYLAND_DISPLAY"):
+                wayland_hint = " Wayland detected but XWayland is not running (no DISPLAY)."
+            raise RuntimeError(
+                f"No X11 display available (DISPLAY env var not set).{wayland_hint} "
+                "OS AI requires X11. If using Wayland, ensure XWayland is enabled."
+            )
+        factory = _load_entry_point("os_ai_os.drivers", "linux")
+        if factory is None:
+            try:
+                mod = importlib.import_module("os_ai_os_linux.drivers")
+                factory = getattr(mod, "make_drivers", None)
+            except Exception:
+                factory = None
+        if factory is None:
+            raise RuntimeError("Linux drivers not installed: install os_ai_os_linux package")
         return factory()
     raise RuntimeError(f"Unsupported platform: {sysname}")
 
