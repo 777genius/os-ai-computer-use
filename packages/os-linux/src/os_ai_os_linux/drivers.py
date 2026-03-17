@@ -46,8 +46,8 @@ class LinuxPermissions:
     def ensure_screen_recording(self) -> None:
         if not self.has_screen_recording():
             _log.warning(
-                "Screenshot tool not found. Install scrot: "
-                "sudo apt-get install scrot"
+                "Screenshot tool not found. Install with: "
+                "sudo apt-get install scrot gnome-screenshot"
             )
 
 
