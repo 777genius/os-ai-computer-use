@@ -1,7 +1,10 @@
 import importlib
 import importlib.util
+import platform
 import sys
 import types
+
+import pytest
 
 
 def _install_quartz_mock(monkeypatch):
@@ -22,6 +25,7 @@ def _install_quartz_mock(monkeypatch):
     return calls
 
 
+@pytest.mark.skipif(platform.system().lower() != "darwin", reason="macOS-only: requires Quartz/os_ai_os_macos")
 def test_press_enter_mac_success(monkeypatch):
     calls = _install_quartz_mock(monkeypatch)
     # re-import keyboard with mocked Quartz
@@ -34,6 +38,7 @@ def test_press_enter_mac_success(monkeypatch):
     assert any(e[0] == "post" for e in calls["events"])  # at least one post
 
 
+@pytest.mark.skipif(platform.system().lower() != "darwin", reason="macOS-only: requires Quartz/os_ai_os_macos")
 def test_press_keycode_safe_on_exception(monkeypatch):
     # Quartz поднимет исключение — функция не должна падать
     def raise_exc(*args, **kwargs):
