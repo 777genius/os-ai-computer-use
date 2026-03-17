@@ -38,6 +38,19 @@ class _ApiKeyFieldState extends State<ApiKeyField> {
   }
 
   @override
+  void didUpdateWidget(ApiKeyField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != oldWidget.initialValue &&
+        widget.initialValue != _controller.text) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _controller.text = widget.initialValue ?? '';
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -45,19 +58,34 @@ class _ApiKeyFieldState extends State<ApiKeyField> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return TextFormField(
       controller: _controller,
       obscureText: _obscureText,
+      style: TextStyle(color: colorScheme.onSurface),
       decoration: InputDecoration(
         labelText: widget.label,
+        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         hintText: widget.hint ?? _getDefaultHint(),
-        border: const OutlineInputBorder(),
+        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: colorScheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: colorScheme.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Toggle visibility button
             IconButton(
-              icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
+              icon: Icon(
+                _obscureText ? Icons.visibility : Icons.visibility_off,
+                color: colorScheme.onSurfaceVariant,
+              ),
               onPressed: () {
                 setState(() {
                   _obscureText = !_obscureText;
@@ -67,15 +95,16 @@ class _ApiKeyFieldState extends State<ApiKeyField> {
             ),
             // Copy button
             IconButton(
-              icon: const Icon(Icons.copy),
+              icon: Icon(Icons.copy, color: colorScheme.onSurfaceVariant),
               onPressed: _controller.text.isEmpty
                   ? null
                   : () {
                       Clipboard.setData(ClipboardData(text: _controller.text));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('API key copied to clipboard'),
-                          duration: Duration(seconds: 2),
+                        SnackBar(
+                          content: const Text('API key copied to clipboard'),
+                          backgroundColor: colorScheme.primaryContainer,
+                          duration: const Duration(seconds: 2),
                         ),
                       );
                     },
@@ -83,7 +112,7 @@ class _ApiKeyFieldState extends State<ApiKeyField> {
             ),
             // Paste button
             IconButton(
-              icon: const Icon(Icons.paste),
+              icon: Icon(Icons.paste, color: colorScheme.onSurfaceVariant),
               onPressed: () async {
                 final data = await Clipboard.getData('text/plain');
                 if (data?.text != null) {

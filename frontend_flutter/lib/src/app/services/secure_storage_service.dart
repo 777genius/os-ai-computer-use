@@ -21,6 +21,7 @@ class SecureStorageService {
   static const String _openaiApiKeyKey = 'openai_api_key';
   static const String _hasCompletedSetupKey = 'has_completed_setup';
   static const String _activeProviderKey = 'active_provider';
+  static const String _userPreferencesKey = 'user_preferences';
 
   Map<String, String>? _cache;
   bool _loaded = false;
@@ -128,6 +129,12 @@ class SecureStorageService {
 
   Future<void> saveActiveProvider(String provider) => _set(_activeProviderKey, provider);
   Future<String?> getActiveProvider() => _get(_activeProviderKey);
+
+  // User preferences
+
+  Future<void> saveUserPreferences(String prefs) => _set(_userPreferencesKey, prefs);
+  Future<String?> getUserPreferences() => _get(_userPreferencesKey);
+  Future<void> deleteUserPreferences() => _remove(_userPreferencesKey);
 
   // Setup tracking
 

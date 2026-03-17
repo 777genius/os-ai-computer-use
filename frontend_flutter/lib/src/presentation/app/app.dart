@@ -109,6 +109,7 @@ class AppRoot extends StatelessWidget {
                 if (repo is ChatRepositoryImpl) {
                   repo.updateWsUriProvider(cfg.wsUri);
                   repo.updateActiveProviderGetter(() => cfg.activeProvider);
+                  repo.updateUserPreferencesGetter(() => cfg.userPreferences);
                 }
                 return repo;
               },

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:frontend_flutter/src/app/config/app_config.dart';
 import 'package:frontend_flutter/src/app/services/api_key_validator.dart';
 import 'package:frontend_flutter/src/app/services/secure_storage_service.dart';
@@ -21,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late TextEditingController _hostController;
   late TextEditingController _portController;
+  late TextEditingController _preferencesController;
   String _anthropicKey = '';
   String _openaiKey = '';
   String _activeProvider = 'anthropic';
@@ -34,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final config = context.read<AppConfig>();
     _hostController = TextEditingController(text: config.host);
     _portController = TextEditingController(text: config.port.toString());
+    _preferencesController = TextEditingController(text: config.userPreferences ?? '');
     _loadSavedKeys();
   }
 
@@ -42,6 +46,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final keys = await _storage.getAllApiKeys();
       final savedProvider = await _storage.getActiveProvider();
+      final savedPreferences = await _storage.getUserPreferences();
+      if (!mounted) return;
       setState(() {
         _anthropicKey = keys['anthropic'] ?? '';
         _openaiKey = keys['openai'] ?? '';
@@ -50,9 +56,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         } else {
           _autoDetectProvider();
         }
+        if (savedPreferences != null) {
+          _preferencesController.text = savedPreferences;
+        }
       });
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -68,6 +79,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _hostController.dispose();
     _portController.dispose();
+    _preferencesController.dispose();
     super.dispose();
   }
 
@@ -82,32 +94,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Save API keys to secure storage
       if (_anthropicKey.isNotEmpty) {
         await _storage.saveAnthropicApiKey(_anthropicKey);
+      } else {
+        await _storage.deleteAnthropicApiKey();
       }
       if (_openaiKey.isNotEmpty) {
         await _storage.saveOpenAIApiKey(_openaiKey);
+      } else {
+        await _storage.deleteOpenAIApiKey();
       }
       await _storage.saveActiveProvider(_activeProvider);
 
+      // Save user preferences
+      final prefs = _preferencesController.text.trim();
+      if (prefs.isNotEmpty) {
+        await _storage.saveUserPreferences(prefs);
+      } else {
+        await _storage.deleteUserPreferences();
+      }
+
       // Mark setup as complete
       await _storage.markSetupComplete();
+
+      if (!mounted) return;
 
       // Update app config
       final config = context.read<AppConfig>();
       config.update(
         host: _hostController.text,
         port: int.tryParse(_portController.text),
-        anthropicApiKey: _anthropicKey.isEmpty ? null : _anthropicKey,
-        openaiApiKey: _openaiKey.isEmpty ? null : _openaiKey,
+        anthropicApiKey: _anthropicKey,
+        openaiApiKey: _openaiKey,
         activeProvider: _activeProvider,
+        userPreferences: prefs.isEmpty ? '' : prefs,
       );
 
-      if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Settings saved successfully'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: const Text('Settings saved successfully'),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -119,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error saving settings: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.errorContainer,
           duration: const Duration(seconds: 3),
         ),
       );
@@ -132,9 +157,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Settings'),
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          'Settings',
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
+        iconTheme: IconThemeData(color: colorScheme.onSurface),
+        automaticallyImplyLeading: !isMacOS,
+        leadingWidth: isMacOS ? 100.0 : null,
+        leading: isMacOS
+            ? Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              )
+            : null,
         actions: [
           if (_isLoading)
             const Center(
@@ -152,8 +199,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
           children: [
+            _constrained(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+            // Personal Preferences Section
+            _buildSectionHeader('Personal Preferences', Icons.tune),
+            const SizedBox(height: 8),
+            Card(
+              color: colorScheme.surfaceContainerLow,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Describe how you want the AI to respond and behave. '
+                      'These preferences will be included in every prompt.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _preferencesController,
+                      style: TextStyle(color: colorScheme.onSurface),
+                      decoration: InputDecoration(
+                        labelText: 'Your preferences',
+                        labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                        hintText: 'e.g. Always respond in Russian, be concise, use code examples...',
+                        hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+                        ),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 5,
+                      minLines: 3,
+                      maxLength: 2000,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // API Keys Section
             _buildSectionHeader('API Keys', Icons.key),
             const SizedBox(height: 8),
@@ -215,6 +313,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.all(16),
                 textStyle: const TextStyle(fontSize: 16),
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+                disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
               ),
             ),
 
@@ -222,28 +324,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // Security Notice
             _buildSecurityNotice(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  Widget _constrained({required Widget child}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(icon, size: 24),
+        Icon(icon, size: 24, color: colorScheme.onSurface),
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildHelpCard(String title, List<Widget> children) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
-      color: Theme.of(context).colorScheme.primaryContainer,
+      color: colorScheme.primaryContainer,
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         initiallyExpanded: false,
@@ -251,13 +372,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16.0),
         childrenPadding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-        iconColor: Theme.of(context).colorScheme.onPrimaryContainer,
-        collapsedIconColor: Theme.of(context).colorScheme.onPrimaryContainer,
+        iconColor: colorScheme.onPrimaryContainer,
+        collapsedIconColor: colorScheme.onPrimaryContainer,
         title: Text(
           title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+            color: colorScheme.onPrimaryContainer,
           ),
         ),
         children: [
@@ -274,18 +395,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildLinkItem(String text, String url, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => _launchUrl(url),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4.0),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+            Icon(icon, size: 16, color: colorScheme.primary),
             const SizedBox(width: 8),
             Text(
               text,
               style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
+                color: colorScheme.primary,
                 decoration: TextDecoration.underline,
               ),
             ),
@@ -298,53 +420,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildProviderSelector() {
     final hasAnthropic = _anthropicKey.isNotEmpty;
     final hasOpenai = _openaiKey.isNotEmpty;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
+      color: colorScheme.surfaceContainerLow,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DropdownButtonFormField<String>(
-              value: _activeProvider,
-              decoration: const InputDecoration(
-                labelText: 'AI Provider',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.smart_toy),
-              ),
-              items: [
-                DropdownMenuItem(
+            SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
                   value: 'anthropic',
-                  child: Row(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text('Anthropic (Claude)'),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       if (hasAnthropic)
-                        const Icon(Icons.check_circle, color: Colors.green, size: 16)
+                        Icon(Icons.check_circle, color: colorScheme.primary, size: 16)
                       else
-                        const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                        Icon(Icons.warning_amber, color: colorScheme.error, size: 16),
                     ],
                   ),
+                  icon: const Icon(Icons.auto_awesome),
                 ),
-                DropdownMenuItem(
+                ButtonSegment(
                   value: 'openai',
-                  child: Row(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('OpenAI (GPT-5.4)'),
-                      const SizedBox(width: 8),
+                      const Text('OpenAI (GPT)'),
+                      const SizedBox(width: 6),
                       if (hasOpenai)
-                        const Icon(Icons.check_circle, color: Colors.green, size: 16)
+                        Icon(Icons.check_circle, color: colorScheme.primary, size: 16)
                       else
-                        const Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                        Icon(Icons.warning_amber, color: colorScheme.error, size: 16),
                     ],
                   ),
+                  icon: const Icon(Icons.bolt),
                 ),
               ],
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _activeProvider = value);
-                }
-              },
+              selected: {_activeProvider},
+              onSelectionChanged: (v) => setState(() => _activeProvider = v.first),
             ),
             if ((_activeProvider == 'anthropic' && !hasAnthropic) ||
                 (_activeProvider == 'openai' && !hasOpenai))
@@ -352,7 +471,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(
                   'Please enter the API key for the selected provider above.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  style: TextStyle(color: colorScheme.error, fontSize: 12),
                 ),
               ),
           ],
@@ -362,6 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildAdvancedSection() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,10 +494,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _hostController,
-            decoration: const InputDecoration(
+            style: TextStyle(color: colorScheme.onSurface),
+            decoration: InputDecoration(
               labelText: 'Backend Host',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
               hintText: '127.0.0.1',
+              hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -389,10 +520,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _portController,
-            decoration: const InputDecoration(
+            style: TextStyle(color: colorScheme.onSurface),
+            decoration: InputDecoration(
               labelText: 'Backend Port',
-              border: OutlineInputBorder(),
+              labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+              border: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colorScheme.primary, width: 2),
+              ),
               hintText: '8765',
+              hintStyle: TextStyle(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
             ),
             keyboardType: TextInputType.number,
             validator: (value) {
@@ -406,26 +548,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               return null;
             },
           ),
+          const SizedBox(height: 16),
+          _CheckConnectionButton(
+            hostController: _hostController,
+            portController: _portController,
+          ),
         ],
       ],
     );
   }
 
   Widget _buildSecurityNotice() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
-      color: isDark ? const Color(0xFF1A2E1A) : Colors.green.shade50,
+      color: colorScheme.tertiaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            Icon(Icons.lock, color: isDark ? const Color(0xFF81C784) : Colors.green),
+            Icon(Icons.lock, color: colorScheme.onTertiaryContainer),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Your API keys are securely stored in your system keychain and never leave your device.',
+                'Your API keys are encrypted (AES-256) and stored locally on your device.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: colorScheme.onTertiaryContainer,
                 ),
               ),
             ),
@@ -440,5 +587,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
+  }
+}
+
+class _CheckConnectionButton extends StatefulWidget {
+  final TextEditingController hostController;
+  final TextEditingController portController;
+  const _CheckConnectionButton({required this.hostController, required this.portController});
+
+  @override
+  State<_CheckConnectionButton> createState() => _CheckConnectionButtonState();
+}
+
+class _CheckConnectionButtonState extends State<_CheckConnectionButton> {
+  bool _checking = false;
+  String? _result;
+  bool? _success;
+
+  Future<void> _check() async {
+    setState(() { _checking = true; _result = null; _success = null; });
+    final host = widget.hostController.text.trim().isEmpty ? '127.0.0.1' : widget.hostController.text.trim();
+    final port = widget.portController.text.trim().isEmpty ? '8765' : widget.portController.text.trim();
+    final url = 'http://$host:$port/healthz';
+
+    try {
+      final response = await Dio().get(
+        url,
+        options: Options(receiveTimeout: const Duration(seconds: 5)),
+      );
+      if (response.statusCode == 200) {
+        setState(() { _result = 'Connected'; _success = true; });
+      } else {
+        setState(() { _result = 'Status ${response.statusCode}'; _success = false; });
+      }
+    } catch (e) {
+      setState(() { _result = 'Connection failed'; _success = false; });
+    } finally {
+      setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final successColor = const Color(0xFF66BB6A);
+    return Row(
+      children: [
+        OutlinedButton.icon(
+          onPressed: _checking ? null : _check,
+          icon: _checking
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.wifi_find, size: 18),
+          label: const Text('Check Connection'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.onSurface,
+            side: BorderSide(color: colorScheme.outline),
+          ),
+        ),
+        if (_result != null) ...[
+          const SizedBox(width: 12),
+          Icon(
+            _success == true ? Icons.check_circle : Icons.error,
+            size: 18,
+            color: _success == true ? successColor : colorScheme.error,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _result!,
+            style: TextStyle(
+              fontSize: 13,
+              color: _success == true ? successColor : colorScheme.error,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }

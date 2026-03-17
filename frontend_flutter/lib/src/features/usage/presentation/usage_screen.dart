@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:provider/provider.dart';
@@ -9,11 +10,14 @@ class UsageScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     return Scaffold(
       appBar: AppBar(
         title: Text('Usage', style: context.theme.style((t) => t.body, (c) => c.assistantBubbleFg)),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
+        toolbarHeight: isMacOS ? 38 : kToolbarHeight,
+        leadingWidth: isMacOS ? 100 : null,
       ),
       body: Observer(builder: (_) {
         final store = context.read<ChatStore?>();

@@ -45,11 +45,13 @@ Future<AppConfig> _loadInitialConfig() async {
     final storage = GetIt.I<SecureStorageService>();
     final keys = await storage.getAllApiKeys();
     final savedProvider = await storage.getActiveProvider();
+    final userPreferences = await storage.getUserPreferences();
 
     return AppConfig(
       anthropicApiKey: keys['anthropic'],
       openaiApiKey: keys['openai'],
       activeProvider: savedProvider ?? 'anthropic',
+      userPreferences: userPreferences,
     );
   } catch (e) {
     debugPrint('Error loading initial config: $e');

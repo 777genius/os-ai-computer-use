@@ -16,6 +16,7 @@ import 'package:frontend_flutter/src/features/chat/presentation/widgets/chat_mes
 import 'package:frontend_flutter/src/features/chat/presentation/widgets/upload_overlay.dart';
 import 'package:frontend_flutter/src/features/usage/presentation/usage_screen.dart';
 import 'package:frontend_flutter/src/presentation/stores/theme_store.dart';
+import 'package:frontend_flutter/src/presentation/settings/settings_screen.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
 import 'package:frontend_flutter/src/presentation/utils/drop_target.dart';
 import 'package:frontend_flutter/src/presentation/overlay/window_mode_service.dart';
@@ -130,6 +131,15 @@ class _ChatScreenState extends State<ChatScreen> {
           ts.toggleUsing(context);
         },
         icon: const Icon(Icons.brightness_6),
+      ),
+      IconButton(
+        tooltip: 'Settings',
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          );
+        },
+        icon: const Icon(Icons.settings),
       ),
       const SizedBox(width: 12),
       Observer(builder: (_) {

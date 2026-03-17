@@ -8,6 +8,7 @@ class AppConfig extends ChangeNotifier {
   String? anthropicApiKey;
   String? openaiApiKey;
   String activeProvider;
+  String? userPreferences;
 
   AppConfig({
     this.host = '127.0.0.1',
@@ -17,6 +18,7 @@ class AppConfig extends ChangeNotifier {
     this.anthropicApiKey,
     this.openaiApiKey,
     this.activeProvider = 'anthropic',
+    this.userPreferences,
   });
 
   Uri wsUri() {
@@ -50,6 +52,7 @@ class AppConfig extends ChangeNotifier {
     String? anthropicApiKey,
     String? openaiApiKey,
     String? activeProvider,
+    String? userPreferences,
   }) {
     bool changed = false;
     if (host != null && host != this.host) {
@@ -78,6 +81,10 @@ class AppConfig extends ChangeNotifier {
     }
     if (activeProvider != null && activeProvider != this.activeProvider) {
       this.activeProvider = activeProvider;
+      changed = true;
+    }
+    if (userPreferences != null && userPreferences != this.userPreferences) {
+      this.userPreferences = userPreferences;
       changed = true;
     }
     if (changed) notifyListeners();

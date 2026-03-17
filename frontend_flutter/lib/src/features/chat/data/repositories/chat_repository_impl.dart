@@ -17,10 +17,12 @@ class ChatRepositoryImpl implements ChatRepository {
   final BackendRestClient _rest;
   Uri Function() _wsUriProvider;
   String Function() _activeProviderGetter;
+  String? Function() _userPreferencesGetter;
 
   ChatRepositoryImpl(this._ws, this._rest)
       : _wsUriProvider = (() => Uri.parse('ws://127.0.0.1:8765/ws?token=secret')),
-        _activeProviderGetter = (() => 'anthropic');
+        _activeProviderGetter = (() => 'anthropic'),
+        _userPreferencesGetter = (() => null);
 
   /// Update the WebSocket URI provider (used by ProxyProvider to inject AppConfig)
   void updateWsUriProvider(Uri Function() provider) {
@@ -30,6 +32,11 @@ class ChatRepositoryImpl implements ChatRepository {
   /// Update the active provider getter (used by ProxyProvider to inject AppConfig)
   void updateActiveProviderGetter(String Function() getter) {
     _activeProviderGetter = getter;
+  }
+
+  /// Update the user preferences getter (used by ProxyProvider to inject AppConfig)
+  void updateUserPreferencesGetter(String? Function() getter) {
+    _userPreferencesGetter = getter;
   }
 
   final _msgCtrl = StreamController<ChatMessage>.broadcast();
@@ -380,6 +387,7 @@ class ChatRepositoryImpl implements ChatRepository {
     _thinkingMsgId = _nextId();
     _msgCtrl.add(ChatMessage(id: _thinkingMsgId!, role: 'assistant', ts: DateTime.now(), kind: 'thought', text: 'Thinking...', meta: const {'thinking': true}));
     _runningCtrl.add(true);
+    final userPrefs = _userPreferencesGetter();
     _ws.send({
       'jsonrpc': '2.0',
       'id': id,
@@ -392,6 +400,8 @@ class ChatRepositoryImpl implements ChatRepository {
         if (_pendingAttachments.isNotEmpty) 'attachments': List<Map<String, String?>>.from(_pendingAttachments),
         if (_activeChatId != null && _lastResponseIdByChat.containsKey(_activeChatId!))
           'previous_response_id': _lastResponseIdByChat[_activeChatId!],
+        if (userPrefs != null && userPrefs.isNotEmpty)
+          'user_preferences': userPrefs,
       },
     });
     _currentJobId = id;

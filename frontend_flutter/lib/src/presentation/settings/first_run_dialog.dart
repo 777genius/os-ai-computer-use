@@ -52,7 +52,7 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving API key: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error saving API key: $e'), backgroundColor: Theme.of(context).colorScheme.errorContainer),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
