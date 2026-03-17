@@ -8,7 +8,17 @@ import time
 import base64
 import logging
 
-import pyautogui
+try:
+    import pyautogui
+except KeyError:
+    # On Linux, pyautogui's X11 backend does Display(os.environ['DISPLAY'])
+    # at module level. Without DISPLAY env var, it raises KeyError.
+    if sys.platform.startswith("linux"):
+        raise ImportError(
+            "pyautogui requires X11 display on Linux (DISPLAY env var not set). "
+            "If using Wayland, ensure XWayland is enabled."
+        ) from None
+    raise
 
 from os_ai_core.config import (
     LOGGER_NAME,

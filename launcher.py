@@ -56,6 +56,39 @@ class OSAILauncher:
         self.logger.info(f"Root dir: {self.root_dir}")
         self.logger.info(f"Flutter app: {self.flutter_app_path}")
 
+        if platform.system() == "Linux":
+            self._check_linux_deps()
+
+    def _check_linux_deps(self):
+        """Check Linux system dependencies and log warnings for missing ones."""
+        import shutil
+        missing = []
+        for tool, purpose in [
+            ("scrot", "screenshots"),
+            ("xdotool", "window management"),
+            ("xclip", "clipboard"),
+        ]:
+            if not shutil.which(tool):
+                missing.append(f"{tool} ({purpose})")
+        if missing:
+            self.logger.warning(
+                "Missing Linux system tools: %s. "
+                "Install with: sudo apt-get install %s",
+                ", ".join(missing),
+                " ".join(t.split()[0] for t in missing),
+            )
+        if not os.environ.get("DISPLAY"):
+            if os.environ.get("WAYLAND_DISPLAY"):
+                self.logger.error(
+                    "Wayland detected but no X11 display (DISPLAY not set). "
+                    "OS AI requires XWayland. Enable it in your compositor settings."
+                )
+            else:
+                self.logger.error(
+                    "No display server found (DISPLAY not set). "
+                    "OS AI requires an X11 display to control the desktop."
+                )
+
     def _get_log_dir(self) -> Path:
         """Return a writable directory for log files.
 
