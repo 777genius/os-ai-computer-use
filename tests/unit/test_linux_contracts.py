@@ -811,3 +811,275 @@ def test_two_screenshots_same_size():
     assert img1.size == img2.size
 
 
+# --------------- computer_tool_handler wrapper ---------------
+
+
+def test_tool_handler_action_field():
+    """computer_tool_handler reads 'action' field."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import computer_tool_handler
+    result = computer_tool_handler({"action": "screenshot"})
+    assert result[0].get("type") == "image"
+
+
+def test_tool_handler_type_field():
+    """computer_tool_handler reads 'type' field as fallback for 'action'."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import computer_tool_handler
+    result = computer_tool_handler({"type": "screenshot"})
+    assert result[0].get("type") == "image"
+
+
+def test_tool_handler_missing_action():
+    """computer_tool_handler without action or type returns error."""
+    from os_ai_core.tools.computer import computer_tool_handler
+    result = computer_tool_handler({})
+    assert "error" in result[0].get("text", "").lower()
+
+
+# --------------- batch handler ---------------
+
+
+def test_batch_handler_single_mode():
+    """computer_tool_handler_batch without _openai_batch delegates to single handler."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import computer_tool_handler_batch
+    result = computer_tool_handler_batch({"action": "screenshot"})
+    assert result[0].get("type") == "image"
+
+
+def test_batch_handler_batch_mode():
+    """computer_tool_handler_batch with _openai_batch runs multiple actions."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import computer_tool_handler_batch
+    result = computer_tool_handler_batch({
+        "_openai_batch": True,
+        "_openai_actions": [
+            {"type": "click", "x": 100, "y": 100, "button": "left"},
+            {"type": "screenshot"},
+        ],
+    })
+    # Batch returns a screenshot at the end
+    assert any(r.get("type") == "image" for r in result)
+
+
+# --------------- wait action ---------------
+
+
+def test_action_wait():
+    """wait action sleeps and returns ok."""
+    from os_ai_core.tools.computer import handle_computer_action
+    import time
+    t0 = time.monotonic()
+    result = handle_computer_action("wait", {"seconds": 0.1})
+    elapsed = time.monotonic() - t0
+    assert "ok" in result[0].get("text", "")
+    assert elapsed >= 0.08  # at least ~100ms
+
+
+# --------------- unknown action ---------------
+
+
+def test_action_unknown_returns_error():
+    """Unknown action returns descriptive error."""
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("nonexistent_action_xyz", {})
+    assert "error" in result[0].get("text", "").lower()
+    assert "unknown" in result[0].get("text", "").lower()
+
+
+# --------------- b64 screenshot format ---------------
+
+
+def test_b64_screenshot_valid_base64():
+    """b64_image_from_screenshot returns valid base64 that can be decoded."""
+    import base64
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import b64_image_from_screenshot
+    block = b64_image_from_screenshot()
+    assert block["type"] == "image"
+    source = block.get("source", {})
+    assert source.get("type") == "base64"
+    data = source.get("data", "")
+    # Must be valid base64
+    raw = base64.b64decode(data)
+    assert len(raw) > 100  # real image
+
+
+def test_b64_screenshot_media_type():
+    """b64_image_from_screenshot has correct media type."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import b64_image_from_screenshot
+    block = b64_image_from_screenshot()
+    media = block.get("source", {}).get("media_type", "")
+    assert media in ("image/png", "image/jpeg")
+
+
+# --------------- drag with timing params ---------------
+
+
+def test_action_drag_with_hold_timing():
+    """left_click_drag with hold_before_ms and hold_after_ms."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click_drag", {
+        "start": [80, 80],
+        "end": [180, 180],
+        "hold_before_ms": 50,
+        "hold_after_ms": 50,
+        "steps": 2,
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_drag_with_step_delay():
+    """left_click_drag with step_delay between moves."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click_drag", {
+        "start": [60, 60],
+        "end": [160, 160],
+        "steps": 3,
+        "step_delay": 0.01,
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+# --------------- key with text fallback ---------------
+
+
+def test_action_key_with_text_fallback():
+    """key action with 'text' instead of 'key' uses fallback parser."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {"text": "Return"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "typed" in text.lower()
+
+
+def test_action_key_with_text_multiple_returns():
+    """key action with 'text': 'Return Return' presses Enter twice."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {"text": "Return Return"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "typed" in text.lower()
+
+
+# --------------- scroll without coordinate ---------------
+
+
+def test_action_scroll_at_current_position():
+    """Scroll without coordinate scrolls at current mouse position."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    # Move to safe position first
+    handle_computer_action("mouse_move", {"coordinate": [200, 200]})
+    result = handle_computer_action("scroll", {
+        "scroll_direction": "down",
+        "scroll_amount": 2,
+    })
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "ok" in text.lower() or "done" in text.lower()
+
+
+# --------------- mouse move with custom duration ---------------
+
+
+def test_action_mouse_move_with_duration():
+    """mouse_move with explicit duration parameter."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    import time
+    t0 = time.monotonic()
+    result = handle_computer_action("mouse_move", {
+        "coordinate": [300, 300],
+        "duration": 0.2,
+    })
+    elapsed = time.monotonic() - t0
+    assert len(result) >= 1
+    assert elapsed >= 0.15  # should take ~200ms
+
+
+# --------------- sequential actions verify state ---------------
+
+
+def test_sequential_clicks_different_positions():
+    """Multiple clicks at different positions — each click lands correctly."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    for x, y in [(100, 100), (200, 150), (300, 200)]:
+        handle_computer_action("left_click", {"coordinate": [x, y]})
+        ax, ay = pyautogui.position()
+        assert abs(ax - x) <= 5, f"Click at ({x},{y}): cursor at ({ax},{ay})"
+        assert abs(ay - y) <= 5, f"Click at ({x},{y}): cursor at ({ax},{ay})"
+
+
+def test_type_then_screenshot_no_crash():
+    """Type text then immediately take screenshot — no race condition."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    handle_computer_action("type", {"text": "test123"})
+    result = handle_computer_action("screenshot", {})
+    assert result[0].get("type") == "image"
+
+
+# --------------- multiple rapid screenshots ---------------
+
+
+def test_rapid_screenshots():
+    """5 screenshots in a row — all succeed and have consistent size."""
+    from os_ai_os.api import get_drivers
+    drv = get_drivers()
+    sizes = []
+    for _ in range(5):
+        img = drv.screen.screenshot()
+        assert img is not None
+        sizes.append(img.size)
+    # All same size
+    assert all(s == sizes[0] for s in sizes)
+
+
+# --------------- mouse move to screen edges ---------------
+
+
+def test_mouse_move_to_screen_edges():
+    """Move to corners/edges of the xvfb screen."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_os.api import get_drivers
+    drv = get_drivers()
+    sz = drv.screen.size()
+    # Top-left (avoiding 0,0 which could trigger failsafe if enabled)
+    drv.mouse.move_to(1, 1)
+    ax, ay = pyautogui.position()
+    assert ax <= 3 and ay <= 3
+    # Bottom-right
+    drv.mouse.move_to(sz.width - 1, sz.height - 1)
+    ax, ay = pyautogui.position()
+    assert ax >= sz.width - 3 and ay >= sz.height - 3
+    # Center
+    cx, cy = sz.width // 2, sz.height // 2
+    drv.mouse.move_to(cx, cy)
+    ax, ay = pyautogui.position()
+    assert abs(ax - cx) <= 2 and abs(ay - cy) <= 2
+
+
+
