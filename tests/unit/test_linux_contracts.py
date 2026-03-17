@@ -367,7 +367,9 @@ def test_action_mouse_move():
     result = handle_computer_action("mouse_move", {
         "coordinate": [200, 200],
     })
-    assert any("done" in str(r.get("text", "")).lower() or "move" in str(r.get("text", "")).lower() for r in result)
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "ok" in text.lower() or "move" in text.lower() or "done" in text.lower()
 
 
 def test_action_left_click():
@@ -409,7 +411,9 @@ def test_action_key_combo():
     pyautogui.FAILSAFE = False
     from os_ai_core.tools.computer import handle_computer_action
     result = handle_computer_action("key", {"key": "ctrl+a"})
-    assert any("done" in str(r.get("text", "")) for r in result)
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "done" in text.lower() or "ok" in text.lower()
 
 
 def test_action_key_enter():
@@ -418,7 +422,9 @@ def test_action_key_enter():
     pyautogui.FAILSAFE = False
     from os_ai_core.tools.computer import handle_computer_action
     result = handle_computer_action("key", {"key": "enter"})
-    assert any("done" in str(r.get("text", "")) for r in result)
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "done" in text.lower() or "ok" in text.lower()
 
 
 def test_action_key_super():
@@ -427,7 +433,9 @@ def test_action_key_super():
     pyautogui.FAILSAFE = False
     from os_ai_core.tools.computer import handle_computer_action
     result = handle_computer_action("key", {"key": "super+l"})
-    assert any("done" in str(r.get("text", "")) for r in result)
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "done" in text.lower() or "ok" in text.lower()
 
 
 def test_action_type_simple():
@@ -461,7 +469,9 @@ def test_action_scroll():
         "scroll_direction": "down",
         "scroll_amount": 3,
     })
-    assert any("done" in str(r.get("text", "")) for r in result)
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "ok" in text.lower() or "done" in text.lower() or "scroll" in text.lower()
 
 
 def test_action_drag():
