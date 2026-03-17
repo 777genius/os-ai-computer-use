@@ -56,7 +56,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb python3-tk python3-dev scrot xdotool xclip
+          sudo apt-get install -y xvfb python3-tk python3-dev scrot gnome-screenshot xdotool xclip
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

@@ -64,7 +64,7 @@ class OSAILauncher:
         import shutil
         missing = []
         for tool, purpose in [
-            ("scrot", "screenshots"),
+            ("scrot", "screenshots (or gnome-screenshot)"),
             ("xdotool", "window management"),
             ("xclip", "clipboard"),
         ]:

@@ -105,7 +105,7 @@ Requirements:
 
 Linux system dependencies (if applicable):
 ```bash
-sudo apt-get install -y scrot xdotool xclip python3-tk
+sudo apt-get install -y scrot gnome-screenshot xdotool xclip python3-tk
 ```
 
 Install:
@@ -337,7 +337,7 @@ See `docs/architecture-universal-llm.md` for details.
 - Linux (supported, X11):
   - Drivers for mouse/keyboard/screen via PyAutoGUI (X11 backend); overlay/sound are no-ops.
   - Requires X11 display (XWayland works). Pure Wayland without XWayland is not yet supported.
-  - System dependencies: `scrot` (screenshots), `xdotool`, `xclip` (clipboard), `python3-tk`.
+  - System dependencies: `scrot` or `gnome-screenshot` (screenshots), `xdotool`, `xclip` (clipboard), `python3-tk`.
   - Unit contract tests and CI with xvfb. Single-file bundle via PyInstaller.
 
 ---
@@ -476,7 +476,7 @@ Apache License 2.0. Preserve `NOTICE` when distributing.
 ## Troubleshooting
 
 - Cursor/keyboard don't work (macOS): grant permissions in System Settings → Privacy & Security (Accessibility, Input Monitoring, Screen Recording) for Terminal and current Python.
-- Linux: no display error: ensure X11 is running (`echo $DISPLAY`). Under Wayland, XWayland must be enabled. Install deps: `sudo apt-get install scrot xdotool xclip python3-tk`.
+- Linux: no display error: ensure X11 is running (`echo $DISPLAY`). Under Wayland, XWayland must be enabled. Install deps: `sudo apt-get install scrot gnome-screenshot xdotool xclip python3-tk`.
 - Integration tests skipped: restart terminal, ensure same interpreter (`which python`, `python -c 'import sys; print(sys.executable)'`).
 - Screenshots empty/missing overlay: enable Screen Recording; check screenshot mode settings.
 
