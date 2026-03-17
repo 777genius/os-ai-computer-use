@@ -521,3 +521,293 @@ def test_clipboard_copy_paste():
             pytest.skip(f"clipboard tool not available: {e}")
         raise
 
+
+# --------------- handle_computer_action: click with modifiers ---------------
+
+
+def test_action_click_with_shift_modifier():
+    """left_click with shift modifier via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click", {
+        "coordinate": [150, 150],
+        "modifiers": "shift",
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_click_with_ctrl_modifier():
+    """left_click with ctrl modifier via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click", {
+        "coordinate": [150, 150],
+        "modifiers": "ctrl",
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_click_with_compound_modifier():
+    """left_click with ctrl+shift compound modifier."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click", {
+        "coordinate": [150, 150],
+        "modifiers": "ctrl+shift",
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_middle_click():
+    """handle_computer_action('middle_click')."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("middle_click", {
+        "coordinate": [150, 150],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_triple_click():
+    """handle_computer_action('triple_click')."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("triple_click", {
+        "coordinate": [150, 150],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+# --------------- handle_computer_action: hold_key ---------------
+
+
+def test_action_hold_key():
+    """hold_key with modifier+key."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("hold_key", {"key": "ctrl+c"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "ok" in text.lower()
+
+
+def test_action_hold_key_shift_tab():
+    """hold_key with shift+tab."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("hold_key", {"key": "shift+tab"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pressed" in text.lower() or "ok" in text.lower()
+
+
+# --------------- handle_computer_action: mouse down/up ---------------
+
+
+def test_action_mouse_down_up():
+    """left_mouse_down then left_mouse_up via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result_down = handle_computer_action("left_mouse_down", {
+        "coordinate": [100, 100],
+    })
+    assert len(result_down) >= 1
+    result_up = handle_computer_action("left_mouse_up", {
+        "coordinate": [200, 200],
+    })
+    assert len(result_up) >= 1
+
+
+# --------------- handle_computer_action: type edge cases ---------------
+
+
+def test_action_type_code_with_brackets():
+    """Type with code characters (brackets) uses clipboard paste path."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("type", {"text": "print('hello')"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pasted" in text or "typed" in text or "done" in text
+
+
+def test_action_type_unicode():
+    """Type with non-ASCII characters uses clipboard paste path."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("type", {"text": "Привет мир"})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "pasted" in text or "typed" in text or "done" in text
+
+
+def test_action_type_empty_string():
+    """Type with empty string."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("type", {"text": ""})
+    assert len(result) >= 1
+
+
+# --------------- handle_computer_action: drag with path ---------------
+
+
+def test_action_drag_with_multi_point_path():
+    """left_click_drag with path parameter (multi-point curve)."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click_drag", {
+        "start": [50, 50],
+        "end": [250, 250],
+        "path": [[50, 50], [100, 200], [200, 100], [250, 250]],
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+def test_action_drag_with_modifiers():
+    """left_click_drag with shift modifier."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("left_click_drag", {
+        "start": [50, 50],
+        "end": [200, 200],
+        "modifiers": "shift",
+    })
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+# --------------- handle_computer_action: scroll directions ---------------
+
+
+def test_action_scroll_up():
+    """Scroll up via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("scroll", {
+        "coordinate": [200, 200],
+        "scroll_direction": "up",
+        "scroll_amount": 3,
+    })
+    assert len(result) >= 1
+
+
+def test_action_scroll_left():
+    """Scroll left (horizontal) via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("scroll", {
+        "coordinate": [200, 200],
+        "scroll_direction": "left",
+        "scroll_amount": 2,
+    })
+    assert len(result) >= 1
+
+
+def test_action_scroll_right():
+    """Scroll right (horizontal) via handle_computer_action."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("scroll", {
+        "coordinate": [200, 200],
+        "scroll_direction": "right",
+        "scroll_amount": 2,
+    })
+    assert len(result) >= 1
+
+
+# --------------- handle_computer_action: error/edge cases ---------------
+
+
+def test_action_missing_action():
+    """Missing action returns error."""
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("", {})
+    # Should not crash, should return some result
+    assert len(result) >= 1
+
+
+def test_action_key_missing_key_param():
+    """key action without 'key' param returns error."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    result = handle_computer_action("key", {})
+    assert len(result) >= 1
+    text = str(result[0].get("text", ""))
+    assert "error" in text.lower() or "missing" in text.lower()
+
+
+def test_action_click_without_coordinate():
+    """Click without coordinate clicks at current position."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    # Move to known position first
+    handle_computer_action("mouse_move", {"coordinate": [150, 150]})
+    result = handle_computer_action("left_click", {})
+    assert any("done" in str(r.get("text", "")) for r in result)
+
+
+# --------------- Full pipeline e2e ---------------
+
+
+def test_full_pipeline_move_click_type_screenshot():
+    """Full AI workflow: move → click → type → screenshot — nothing crashes."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+
+    # 1. Move
+    r1 = handle_computer_action("mouse_move", {"coordinate": [200, 200]})
+    assert len(r1) >= 1
+
+    # 2. Click
+    r2 = handle_computer_action("left_click", {"coordinate": [200, 200]})
+    assert len(r2) >= 1
+
+    # 3. Type
+    r3 = handle_computer_action("type", {"text": "test"})
+    assert len(r3) >= 1
+
+    # 4. Screenshot
+    r4 = handle_computer_action("screenshot", {})
+    assert len(r4) >= 1
+    assert r4[0].get("type") == "image"
+
+
+def test_cursor_position_after_action_click():
+    """After handle_computer_action click at (x,y), cursor should be near (x,y)."""
+    import pyautogui
+    pyautogui.FAILSAFE = False
+    from os_ai_core.tools.computer import handle_computer_action
+    handle_computer_action("left_click", {"coordinate": [250, 250]})
+    ax, ay = pyautogui.position()
+    assert abs(ax - 250) <= 5, f"X: expected ~250, got {ax}"
+    assert abs(ay - 250) <= 5, f"Y: expected ~250, got {ay}"
+
+
+def test_two_screenshots_same_size():
+    """Two consecutive screenshots should have the same dimensions."""
+    from os_ai_os.api import get_drivers
+    drv = get_drivers()
+    img1 = drv.screen.screenshot()
+    img2 = drv.screen.screenshot()
+    assert img1.size == img2.size
+
+
