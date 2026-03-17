@@ -18,7 +18,10 @@ import platform
 from pathlib import Path
 from typing import Optional
 
-import pystray
+try:
+    import pystray
+except ImportError:
+    pystray = None  # type: ignore[assignment]
 from PIL import Image, ImageDraw
 
 
@@ -88,6 +91,12 @@ class OSAILauncher:
                     "No display server found (DISPLAY not set). "
                     "OS AI requires an X11 display to control the desktop."
                 )
+        # Check for system tray support (pystray needs PyGObject on Linux)
+        if pystray is None:
+            self.logger.warning(
+                "pystray not available — system tray icon will be disabled. "
+                "Install with: sudo apt-get install python3-gi gir1.2-appindicator3-0.1"
+            )
 
     def _get_log_dir(self) -> Path:
         """Return a writable directory for log files.
@@ -355,6 +364,17 @@ class OSAILauncher:
             menu=self.create_tray_menu()
         )
 
+    def _wait_without_tray(self):
+        """Block until Flutter exits or shutdown is requested (fallback when tray unavailable)."""
+        self.logger.info("Running without system tray. Press Ctrl+C to quit.")
+        try:
+            if self.flutter_process:
+                self.flutter_process.wait()
+            else:
+                self.shutdown_event.wait()
+        except KeyboardInterrupt:
+            pass
+
     def run(self):
         """Main run method - starts everything"""
         # Setup signal handlers for graceful shutdown
@@ -385,10 +405,25 @@ class OSAILauncher:
                 self.logger.error("Failed to start Flutter. Exiting.")
                 sys.exit(1)
 
-            # Setup and run tray (blocking call)
-            self.setup_tray()
-            self.logger.info("Starting system tray...")
-            self.tray_icon.run()
+            # Setup and run tray (blocking call) or fallback to waiting
+            if pystray is not None:
+                try:
+                    self.setup_tray()
+                    self.logger.info("Starting system tray...")
+                    self.tray_icon.run()
+                except Exception as e:
+                    self.logger.warning(
+                        "System tray failed: %s. Running without tray. "
+                        "On Linux, install: sudo apt-get install python3-gi gir1.2-appindicator3-0.1",
+                        e,
+                    )
+                    self._wait_without_tray()
+            else:
+                self.logger.warning(
+                    "pystray not available. Running without system tray. "
+                    "On Linux, install: sudo apt-get install python3-gi gir1.2-appindicator3-0.1"
+                )
+                self._wait_without_tray()
 
         except KeyboardInterrupt:
             self.logger.info("Interrupted by user")

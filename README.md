@@ -337,7 +337,7 @@ See `docs/architecture-universal-llm.md` for details.
 - Linux (supported, X11):
   - Drivers for mouse/keyboard/screen via PyAutoGUI (X11 backend); overlay/sound are no-ops.
   - Requires X11 display (XWayland works). Pure Wayland without XWayland is not yet supported.
-  - System dependencies: `scrot` or `gnome-screenshot` (screenshots), `xdotool`, `xclip` (clipboard), `python3-tk`.
+  - System dependencies: `scrot` or `gnome-screenshot` (screenshots), `xdotool`, `xclip` (clipboard), `python3-tk`. For system tray: `python3-gi`, `gir1.2-appindicator3-0.1` (optional — app runs without tray if unavailable).
   - Unit contract tests and CI with xvfb. Single-file bundle via PyInstaller.
 
 ---

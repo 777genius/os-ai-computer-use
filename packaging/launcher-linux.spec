@@ -27,8 +27,10 @@ if os.path.exists(VERSION_FILE):
     datas.append((VERSION_FILE, '.'))
 
 hiddenimports = [
-    # System tray
-    'pystray', 'pystray._gtk',
+    # System tray (all Linux backends + utilities for graceful fallback)
+    'pystray', 'pystray._gtk', 'pystray._appindicator', 'pystray._xorg',
+    'pystray._util', 'pystray._util.gtk', 'pystray._util.notify_dbus',
+    'six',  # required by pystray._xorg
     # PyAutoGUI stack
     'pyautogui', 'pyscreeze', 'mouseinfo', 'pygetwindow', 'pytweening',
     'PIL', 'PIL.Image', 'PIL.ImageFile', 'PIL.PngImagePlugin', 'PIL.JpegImagePlugin',
