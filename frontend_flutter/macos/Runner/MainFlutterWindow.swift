@@ -56,8 +56,8 @@ class MainFlutterWindow: NSPanel {
   private var savedFrame: NSRect?
   private var windowModeChannel: FlutterMethodChannel?
   private var hotkeyChannel: FlutterMethodChannel?
-  private var globalKeyMonitor: Any?
-  private var localKeyMonitor: Any?
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
 
   override func awakeFromNib() {
     let container = BlurContainerViewController()
@@ -81,6 +81,7 @@ class MainFlutterWindow: NSPanel {
     Self.swizzleFlutterViewWrapperIfNeeded()
 
     setupWindowModeChannel(messenger: container.flutterViewController.engine.binaryMessenger)
+    setupPermissionsChannel(messenger: container.flutterViewController.engine.binaryMessenger)
     hotkeyChannel = FlutterMethodChannel(
       name: "com.osai/hotkeys",
       binaryMessenger: container.flutterViewController.engine.binaryMessenger
@@ -153,33 +154,85 @@ class MainFlutterWindow: NSPanel {
     }
   }
 
-  /// Register global Ctrl+Esc hotkey via NSEvent monitor.
-  /// This approach works reliably on macOS Sequoia (15+) where Carbon
-  /// RegisterEventHotKey may silently fail without Accessibility permissions.
+  /// Register global Ctrl+Esc hotkey via CGEventTap.
+  /// Apple-recommended approach (over Carbon RegisterEventHotKey and NSEvent monitors).
+  /// Works in both debug and release builds. Requires Accessibility/Input Monitoring permission.
+  /// Reference: https://developer.apple.com/forums/thread/735223
   private func setupGlobalHotkeys() {
-    let handler: (NSEvent) -> Void = { [weak self] event in
-      // Ctrl+Esc: keyCode 53 (kVK_Escape) with Control modifier only
-      let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-      guard event.keyCode == 53, flags == .control else { return }
-
-      NSLog("Global hotkey Ctrl+Esc triggered")
-      DispatchQueue.main.async {
-        self?.hotkeyChannel?.invokeMethod("emergencyStop", arguments: nil)
+    // Request Input Monitoring permission (macOS 10.15+)
+    if #available(macOS 10.15, *) {
+      let hasAccess = CGPreflightListenEventAccess()
+      if !hasAccess {
+        NSLog("Input Monitoring not granted, requesting...")
+        CGRequestListenEventAccess()
       }
     }
 
-    // Global monitor: fires when app is NOT focused (requires Accessibility permission)
-    globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler)
-    NSLog("Global key monitor registered (requires Accessibility permission)")
+    // Store a weak reference for use in C callback
+    let refcon = Unmanaged.passUnretained(self).toOpaque()
 
-    // Local monitor: fires when app IS focused (no special permissions needed)
-    localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-      let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-      if event.keyCode == 53, flags == .control {
-        handler(event)
+    // CGEventTap callback — C function, no captures allowed
+    let callback: CGEventTapCallBack = { proxy, type, event, refcon in
+      // Handle tap disabled by timeout — re-enable
+      if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        if let refcon = refcon {
+          let panel = Unmanaged<MainFlutterWindow>.fromOpaque(refcon).takeUnretainedValue()
+          if let tap = panel.eventTap {
+            CGEvent.tapEnable(tap: tap, enable: true)
+            NSLog("CGEventTap re-enabled after timeout")
+          }
+        }
+        return Unmanaged.passUnretained(event)
       }
-      return event
+
+      let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+      let flags = event.flags
+
+      // Ctrl+Esc: keyCode 53, Control flag only
+      if keyCode == 53 && flags.contains(.maskControl) &&
+         !flags.contains(.maskShift) && !flags.contains(.maskCommand) && !flags.contains(.maskAlternate) {
+        NSLog("Global hotkey Ctrl+Esc triggered via CGEventTap")
+        if let refcon = refcon {
+          let panel = Unmanaged<MainFlutterWindow>.fromOpaque(refcon).takeUnretainedValue()
+          DispatchQueue.main.async { [weak panel] in
+            guard let channel = panel?.hotkeyChannel else {
+              NSLog("hotkeyChannel is nil, skipping emergencyStop")
+              return
+            }
+            channel.invokeMethod("emergencyStop", arguments: nil) { result in
+              if let error = result as? FlutterError {
+                NSLog("emergencyStop error: %@", error.message ?? "unknown")
+              }
+            }
+          }
+        }
+        // Swallow the event (don't pass to active app)
+        return nil
+      }
+
+      return Unmanaged.passUnretained(event)
     }
+
+    // Create the tap — listen for keyDown events globally
+    guard let tap = CGEvent.tapCreate(
+      tap: .cgSessionEventTap,
+      place: .headInsertEventTap,
+      options: .defaultTap,
+      eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue),
+      callback: callback,
+      userInfo: refcon
+    ) else {
+      NSLog("Failed to create CGEventTap — check Accessibility/Input Monitoring permission")
+      return
+    }
+
+    eventTap = tap
+    runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+    if let source = runLoopSource {
+      CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+    }
+    CGEvent.tapEnable(tap: tap, enable: true)
+    NSLog("CGEventTap registered for Ctrl+Esc (global hotkey)")
   }
 
   override func close() {
@@ -188,13 +241,53 @@ class MainFlutterWindow: NSPanel {
   }
 
   private func teardownGlobalHotkeys() {
-    if let monitor = globalKeyMonitor {
-      NSEvent.removeMonitor(monitor)
-      globalKeyMonitor = nil
+    if let tap = eventTap {
+      CGEvent.tapEnable(tap: tap, enable: false)
+      eventTap = nil
     }
-    if let monitor = localKeyMonitor {
-      NSEvent.removeMonitor(monitor)
-      localKeyMonitor = nil
+    if let source = runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+      runLoopSource = nil
+    }
+  }
+
+  private func setupPermissionsChannel(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "com.osai/permissions", binaryMessenger: messenger)
+    channel.setMethodCallHandler { (call, result) in
+      switch call.method {
+      case "checkAccessibility":
+        let trusted = AXIsProcessTrustedWithOptions(nil)
+        result(trusted)
+      case "requestAccessibility":
+        let trusted = AXIsProcessTrustedWithOptions(
+          [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+        )
+        result(trusted)
+      case "checkScreenRecording":
+        if #available(macOS 10.15, *) {
+          result(CGPreflightScreenCaptureAccess())
+        } else {
+          result(true)
+        }
+      case "requestScreenRecording":
+        if #available(macOS 10.15, *) {
+          CGRequestScreenCaptureAccess()
+        }
+        result(nil)
+      case "checkInputMonitoring":
+        if #available(macOS 10.15, *) {
+          result(CGPreflightListenEventAccess())
+        } else {
+          result(true)
+        }
+      case "requestInputMonitoring":
+        if #available(macOS 10.15, *) {
+          CGRequestListenEventAccess()
+        }
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
     }
   }
 

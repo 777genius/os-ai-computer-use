@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Any
+from typing import Callable, Dict, List, Any, Optional
 
 from os_ai_llm.types import ToolCall, ToolResult, TextPart, ImagePart
 
 
 class ToolRegistry:
     def __init__(self) -> None:
-        self._handlers: Dict[str, Callable[[Dict[str, Any]], List[Dict[str, Any]]]] = {}
+        self._handlers: Dict[str, Callable[..., List[Dict[str, Any]]]] = {}
 
-    def register(self, name: str, handler: Callable[[Dict[str, Any]], List[Dict[str, Any]]]) -> None:
+    def register(self, name: str, handler: Callable[..., List[Dict[str, Any]]]) -> None:
         self._handlers[name] = handler
 
-    def execute(self, call: ToolCall) -> ToolResult:
+    def execute(self, call: ToolCall, cancel_token: Optional[Any] = None) -> ToolResult:
         handler = self._handlers.get(call.name)
         if not handler:
             return ToolResult(
@@ -22,7 +22,11 @@ class ToolRegistry:
             )
 
         # Merge metadata into args so batch handler can access _openai_batch, _openai_actions
-        merged_args = {**call.args, **call.metadata} if call.metadata else call.args
+        merged_args = {**call.args, **call.metadata} if call.metadata else dict(call.args)
+
+        # Inject cancel_token so handlers can check for cancellation
+        if cancel_token is not None:
+            merged_args["_cancel_token"] = cancel_token
 
         try:
             raw_blocks = handler(merged_args)

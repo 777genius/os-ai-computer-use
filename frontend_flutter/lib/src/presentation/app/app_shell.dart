@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
@@ -22,6 +23,7 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   HotKey? _overlayHotKey;
+  HotKey? _stopHotKey;
   static const _hotkeyChannel = MethodChannel('com.osai/hotkeys');
 
   @override
@@ -57,6 +59,19 @@ class _AppShellState extends State<AppShell> {
         _overlayHotKey!,
         keyDownHandler: (_) => _toggleOverlay(),
       );
+
+      // Emergency stop on Windows/Linux (macOS uses native CGEventTap)
+      if (!kIsWeb && defaultTargetPlatform != TargetPlatform.macOS) {
+        _stopHotKey = HotKey(
+          key: PhysicalKeyboardKey.escape,
+          modifiers: [HotKeyModifier.control, HotKeyModifier.shift],
+          scope: HotKeyScope.system,
+        );
+        await hotKeyManager.register(
+          _stopHotKey!,
+          keyDownHandler: (_) => _emergencyStop(),
+        );
+      }
     } catch (e) {
       debugPrint('Failed to register global hotkey: $e');
     }
@@ -120,6 +135,7 @@ class _AppShellState extends State<AppShell> {
     _hotkeyChannel.setMethodCallHandler(null);
     try {
       if (_overlayHotKey != null) hotKeyManager.unregister(_overlayHotKey!);
+      if (_stopHotKey != null) hotKeyManager.unregister(_stopHotKey!);
     } catch (_) {}
     try {
       final repo = context.read<ChatRepository>();

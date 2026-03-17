@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import 'package:frontend_flutter/src/app/config/app_config.dart';
 import 'package:frontend_flutter/src/app/services/api_key_validator.dart';
@@ -304,6 +305,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildAdvancedSection(),
 
             const SizedBox(height: 32),
+
+            // Permissions (macOS)
+            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) ...[
+              _buildSectionHeader('Permissions', Icons.security),
+              const SizedBox(height: 8),
+              const _PermissionsSection(),
+              const SizedBox(height: 32),
+            ],
 
             // Save Button
             ElevatedButton.icon(
@@ -661,6 +670,285 @@ class _CheckConnectionButtonState extends State<_CheckConnectionButton> {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _PermissionsSection extends StatefulWidget {
+  const _PermissionsSection();
+
+  @override
+  State<_PermissionsSection> createState() => _PermissionsSectionState();
+}
+
+class _PermissionsSectionState extends State<_PermissionsSection> {
+  static const _channel = MethodChannel('com.osai/permissions');
+
+  bool? _accessibility;
+  bool? _screenRecording;
+  bool? _inputMonitoring;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAll();
+  }
+
+  Future<void> _checkAll() async {
+    setState(() => _loading = true);
+    try {
+      final a = await _channel.invokeMethod<bool>('checkAccessibility');
+      final s = await _channel.invokeMethod<bool>('checkScreenRecording');
+      final i = await _channel.invokeMethod<bool>('checkInputMonitoring');
+      if (!mounted) return;
+      setState(() {
+        _accessibility = a ?? false;
+        _screenRecording = s ?? false;
+        _inputMonitoring = i ?? false;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Permissions check error: $e');
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _request(String method) async {
+    try {
+      await _channel.invokeMethod(method);
+    } catch (_) {}
+    await Future.delayed(const Duration(seconds: 1));
+    if (mounted) _checkAll();
+  }
+
+  int get _grantedCount =>
+      [_accessibility, _screenRecording, _inputMonitoring].where((v) => v == true).length;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final allGranted = _grantedCount == 3;
+
+    if (_loading) {
+      return Card(
+        color: colorScheme.surfaceContainerLow,
+        child: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+      );
+    }
+
+    return Card(
+      color: colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Summary banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: allGranted
+                    ? const Color(0xFF66BB6A).withValues(alpha: 0.1)
+                    : colorScheme.error.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    allGranted ? Icons.check_circle : Icons.warning_amber_rounded,
+                    size: 18,
+                    color: allGranted ? const Color(0xFF66BB6A) : colorScheme.error,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      allGranted
+                          ? 'All permissions granted'
+                          : '$_grantedCount of 3 permissions granted — some features may not work',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: allGranted ? const Color(0xFF66BB6A) : colorScheme.error,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Re-check permissions',
+                    onPressed: _checkAll,
+                    icon: Icon(Icons.refresh, size: 16, color: colorScheme.onSurfaceVariant),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _PermissionRow(
+              icon: Icons.accessibility_new,
+              name: 'Accessibility',
+              description: 'Control mouse and keyboard for automation',
+              granted: _accessibility,
+              onRequest: () => _request('requestAccessibility'),
+              required: true,
+            ),
+            const SizedBox(height: 8),
+            _PermissionRow(
+              icon: Icons.screenshot_monitor,
+              name: 'Screen Recording',
+              description: 'Capture screenshots so AI can see your screen',
+              granted: _screenRecording,
+              onRequest: () => _request('requestScreenRecording'),
+              required: true,
+            ),
+            const SizedBox(height: 8),
+            _PermissionRow(
+              icon: Icons.keyboard,
+              name: 'Input Monitoring',
+              description: 'Emergency stop hotkey Ctrl+Esc from any app',
+              granted: _inputMonitoring,
+              onRequest: () => _request('requestInputMonitoring'),
+              required: false,
+            ),
+            if (!allGranted) ...[
+              const SizedBox(height: 12),
+              Text(
+                'After granting, you may need to restart the app for changes to take effect.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PermissionRow extends StatelessWidget {
+  final IconData icon;
+  final String name;
+  final String description;
+  final bool? granted;
+  final VoidCallback onRequest;
+  final bool required;
+
+  const _PermissionRow({
+    required this.icon,
+    required this.name,
+    required this.description,
+    required this.granted,
+    required this.onRequest,
+    this.required = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isGranted = granted == true;
+    final statusColor = isGranted ? const Color(0xFF66BB6A) : colorScheme.error;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isGranted
+              ? const Color(0xFF66BB6A).withValues(alpha: 0.3)
+              : colorScheme.error.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Status icon
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: statusColor),
+          ),
+          const SizedBox(width: 12),
+          // Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(name, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface,
+                    )),
+                    if (!this.required) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('Optional', style: TextStyle(
+                          fontSize: 9,
+                          color: colorScheme.onSurfaceVariant,
+                        )),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(description, style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 11,
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Status badge + action
+          if (isGranted)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF66BB6A).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check, size: 12, color: Color(0xFF66BB6A)),
+                  const SizedBox(width: 4),
+                  const Text('Granted', style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF66BB6A),
+                  )),
+                ],
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: onRequest,
+              icon: const Icon(Icons.open_in_new, size: 14),
+              label: const Text('Grant'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                textStyle: const TextStyle(fontSize: 12),
+                side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.5)),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

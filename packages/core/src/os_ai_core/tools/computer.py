@@ -707,8 +707,14 @@ def computer_tool_handler_batch(args: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not actions:
         return [b64_image_from_screenshot()]
 
+    cancel_token = args.get("_cancel_token")
     logger = logging.getLogger(LOGGER_NAME)
     for i, action_args in enumerate(actions):
+        # Check cancel before each action in batch
+        if cancel_token is not None and cancel_token.is_cancelled:
+            logger.info("Batch cancelled at action %d/%d", i + 1, len(actions))
+            break
+
         action_name = action_args.get("action", "")
         if action_name == "screenshot":
             continue

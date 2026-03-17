@@ -181,7 +181,7 @@ class Orchestrator:
                             on_event("tool_call", {"name": call.name, "args": call.args})
                     except Exception:
                         pass
-                result = self._tools.execute(call)
+                result = self._tools.execute(call, cancel_token=cancel_token)
                 # Propagate provider metadata (safety checks, etc.)
                 safety_checks = call.metadata.get("_openai_pending_safety_checks", [])
                 if safety_checks:
