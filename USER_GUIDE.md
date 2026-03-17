@@ -127,7 +127,11 @@ Monitor your API usage and estimated costs in real-time.
 
 **Linux**:
 - Ensure you have required libraries: `libgtk-3-0`, `libsecret-1-0`
-- Install if needed: `sudo apt-get install libgtk-3-0 libsecret-1-0`
+- Install system dependencies for desktop automation:
+  ```bash
+  sudo apt-get install libgtk-3-0 libsecret-1-0 scrot xdotool xclip
+  ```
+- Ensure X11 display is available (`echo $DISPLAY`). If using Wayland, XWayland must be enabled.
 
 ### Reset Settings
 

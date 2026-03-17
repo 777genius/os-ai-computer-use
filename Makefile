@@ -12,8 +12,9 @@ install:
 dev-install:
 	# Install local packages in editable mode for mono-repo dev
 	$(PY) -m pip install -e packages/os
-	$(PY) -m pip install -e packages/os-macos
-	$(PY) -m pip install -e packages/os-windows
+	$(PY) -m pip install -e packages/os-macos || true
+	$(PY) -m pip install -e packages/os-windows || true
+	$(PY) -m pip install -e packages/os-linux || true
 	$(PY) -m pip install -e packages/core
 	$(PY) -m pip install -e packages/backend
 
