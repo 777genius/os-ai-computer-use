@@ -21,7 +21,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  HotKey? _stopHotKey;
   HotKey? _overlayHotKey;
   static const _hotkeyChannel = MethodChannel('com.osai/hotkeys');
 
@@ -48,16 +47,6 @@ class _AppShellState extends State<AppShell> {
 
   Future<void> _registerGlobalHotkeys() async {
     try {
-      _stopHotKey = HotKey(
-        key: PhysicalKeyboardKey.escape,
-        modifiers: [HotKeyModifier.control],
-        scope: HotKeyScope.system,
-      );
-      await hotKeyManager.register(
-        _stopHotKey!,
-        keyDownHandler: (_) => _emergencyStop(),
-      );
-
       // Toggle overlay mode: Cmd+Shift+O (macOS) / Ctrl+Shift+O (Win/Linux)
       _overlayHotKey = HotKey(
         key: PhysicalKeyboardKey.keyO,
@@ -128,8 +117,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _hotkeyChannel.setMethodCallHandler(null);
     try {
-      if (_stopHotKey != null) hotKeyManager.unregister(_stopHotKey!);
       if (_overlayHotKey != null) hotKeyManager.unregister(_overlayHotKey!);
     } catch (_) {}
     try {

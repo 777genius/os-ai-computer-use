@@ -180,32 +180,30 @@ class MainFlutterWindow: NSPanel {
   private func setupGlobalHotkeys() {
     let handler: (NSEvent) -> Void = { [weak self] event in
       // Ctrl+Esc: keyCode 53 (kVK_Escape) with Control modifier only
-      guard event.keyCode == 53,
-            event.modifierFlags.contains(.control),
-            !event.modifierFlags.contains(.command),
-            !event.modifierFlags.contains(.option),
-            !event.modifierFlags.contains(.shift)
-      else { return }
+      let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+      guard event.keyCode == 53, flags == .control else { return }
 
       DispatchQueue.main.async {
-        self?.windowModeChannel?.invokeMethod("emergencyStop", arguments: nil)
+        self?.hotkeyChannel?.invokeMethod("emergencyStop", arguments: nil)
       }
     }
 
-    // Global monitor: fires when app is NOT focused
+    // Global monitor: fires when app is NOT focused (requires Accessibility permission)
     globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown, handler: handler)
 
-    // Local monitor: fires when app IS focused (returns nil to not consume the event)
+    // Local monitor: fires when app IS focused (no special permissions needed)
     localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-      if event.keyCode == 53,
-         event.modifierFlags.contains(.control),
-         !event.modifierFlags.contains(.command),
-         !event.modifierFlags.contains(.option),
-         !event.modifierFlags.contains(.shift) {
+      let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+      if event.keyCode == 53, flags == .control {
         handler(event)
       }
       return event
     }
+  }
+
+  override func close() {
+    teardownGlobalHotkeys()
+    super.close()
   }
 
   private func teardownGlobalHotkeys() {

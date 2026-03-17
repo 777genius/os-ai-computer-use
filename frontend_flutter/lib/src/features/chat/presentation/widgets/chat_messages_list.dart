@@ -9,6 +9,7 @@ import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend_flutter/src/features/chat/application/stores/chat_store.dart';
 import 'package:frontend_flutter/src/presentation/theme/app_theme.dart';
+import 'package:frontend_flutter/src/presentation/widgets/markdown/markdown_message.dart';
 
 class ChatMessagesList extends StatefulWidget {
   const ChatMessagesList({super.key});
@@ -645,12 +646,7 @@ class _MessageBubble extends StatelessWidget {
     final timeColor = isUser
         ? Colors.white.withValues(alpha: 0.6)
         : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
-    final textStyle = isUser
-        ? context.theme.style((t) => t.body, (c) => c.userBubbleFg)
-        : context.theme.style((t) => t.body, (c) => c.assistantBubbleFg);
     final timeStyle = TextStyle(fontSize: 10, color: timeColor);
-
-    const timePadding = '              '; // reserve space for "HH:MM"
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -659,23 +655,22 @@ class _MessageBubble extends StatelessWidget {
         color: isUser ? context.themeColors.userBubbleBg : context.themeColors.assistantBubbleBg,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(text: text, style: textStyle),
-                TextSpan(
-                  text: timePadding,
-                  style: textStyle.copyWith(color: const Color(0x00000000)),
-                ),
-              ],
+          if (isUser)
+            // User messages: plain text (no markdown rendering)
+            Text(text, style: context.theme.style((t) => t.body, (c) => c.userBubbleFg))
+          else
+            // Assistant messages: full markdown rendering
+            MarkdownMessage(text: text, isUser: false),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(timeStr, style: timeStyle),
             ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Text(timeStr, style: timeStyle),
           ),
         ],
       ),

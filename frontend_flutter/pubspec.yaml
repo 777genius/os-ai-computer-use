@@ -64,6 +64,8 @@ dependencies:
   encrypt: ^5.0.3
   crypto: ^3.0.6
   pasteboard: ^0.2.0
+  markdown_widget: ^2.3.2+8
+  flutter_highlight: ^0.7.0
 
 dev_dependencies:
   flutter_test:

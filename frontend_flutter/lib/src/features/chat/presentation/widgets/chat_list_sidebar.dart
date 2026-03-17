@@ -12,7 +12,7 @@ class ChatListSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgAlpha = isDark ? 0.7 : 0.3;
+    final bgAlpha = isDark ? 0.47 : 0.2;
     return Container(
       width: 280,
       decoration: BoxDecoration(

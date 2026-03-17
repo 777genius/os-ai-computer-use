@@ -54,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildScreen(BuildContext context, {required bool isOverlay}) {
     final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgAlpha = isDark ? 0.7 : 0.3;
+    final bgAlpha = isDark ? 0.47 : 0.2;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
