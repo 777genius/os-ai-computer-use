@@ -4,6 +4,7 @@ These tests use monkeypatch/mocks and can run on ANY platform.
 """
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 import sys
@@ -307,4 +308,89 @@ class TestMakeDriversAssembly:
             drv = make_drivers()
 
         assert isinstance(drv.permissions, LinuxPermissions)
+
+
+# --------------- NoOp stubs contract ---------------
+
+
+class TestNoOpStubs:
+    """Verify NoOp stubs don't crash and return None."""
+
+    def test_noop_overlay_highlight_returns_none(self):
+        from os_ai_os.defaults import NoOpOverlay
+        assert NoOpOverlay().highlight(10, 20, radius=5, duration=0.1) is None
+
+    def test_noop_overlay_process_events(self):
+        from os_ai_os.defaults import NoOpOverlay
+        assert NoOpOverlay().process_events() is None
+
+    def test_noop_sound_play_click(self):
+        from os_ai_os.defaults import NoOpSound
+        assert NoOpSound().play_click() is None
+
+    def test_noop_sound_play_done(self):
+        from os_ai_os.defaults import NoOpSound
+        assert NoOpSound().play_done() is None
+
+    def test_always_granted_permissions(self):
+        from os_ai_os.defaults import AlwaysGrantedPermissions
+        p = AlwaysGrantedPermissions()
+        assert p.has_input_access() is True
+        assert p.has_screen_recording() is True
+        assert p.ensure_input_access() is None
+        assert p.ensure_screen_recording() is None
+
+
+# --------------- computer.py import error handling ---------------
+
+
+class TestComputerPyAutoGUIImportGuard:
+    """Test the try/except around import pyautogui in computer.py."""
+
+    def test_keyerror_on_linux_gives_importerror(self, monkeypatch):
+        """Simulate KeyError('DISPLAY') from pyautogui X11 backend on Linux."""
+        import importlib
+        monkeypatch.setattr("sys.platform", "linux")
+
+        original_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pyautogui":
+                raise KeyError("DISPLAY")
+            return original_import(name, *args, **kwargs)
+
+        # Remove cached pyautogui and computer modules
+        mods_to_remove = [k for k in sys.modules if k.startswith("os_ai_core.tools.computer") or k == "pyautogui"]
+        saved = {k: sys.modules.pop(k) for k in mods_to_remove if k in sys.modules}
+
+        try:
+            with patch("builtins.__import__", side_effect=fake_import):
+                with pytest.raises(ImportError, match="X11 display"):
+                    importlib.import_module("os_ai_core.tools.computer")
+        finally:
+            # Restore modules
+            sys.modules.update(saved)
+
+    def test_non_display_error_on_linux_reraises(self, monkeypatch):
+        """Non-display exceptions should be re-raised as-is on Linux."""
+        import importlib
+        monkeypatch.setattr("sys.platform", "linux")
+
+        original_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "pyautogui":
+                raise RuntimeError("some other error")
+            return original_import(name, *args, **kwargs)
+
+        mods_to_remove = [k for k in sys.modules if k.startswith("os_ai_core.tools.computer")]
+        saved = {k: sys.modules.pop(k) for k in mods_to_remove if k in sys.modules}
+
+        try:
+            with patch("builtins.__import__", side_effect=fake_import):
+                with pytest.raises(RuntimeError, match="some other error"):
+                    importlib.import_module("os_ai_core.tools.computer")
+        finally:
+            sys.modules.update(saved)
+
 
