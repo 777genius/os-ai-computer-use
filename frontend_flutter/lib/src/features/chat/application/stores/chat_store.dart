@@ -72,7 +72,12 @@ abstract class _ChatStore with Store {
         _usageChatId = null;
       }
     });
-    repo.connectionStatus().listen((s) => connection = s);
+    repo.connectionStatus().listen((s) {
+      connection = s;
+      if (s == ConnectionStatus.connected) {
+        connectionError = null;
+      }
+    });
   }
 
   // Sessions and per-chat state
@@ -116,6 +121,9 @@ abstract class _ChatStore with Store {
   @observable
   ConnectionStatus connection = ConnectionStatus.connecting;
 
+  @observable
+  String? connectionError;
+
   String? _usageChatId;
   String? _messageChatId;
 
@@ -133,16 +141,19 @@ abstract class _ChatStore with Store {
       if (saved != null && saved.isNotEmpty) {
         sessions = ObservableList.of(saved);
         activeChatId = saved.first.id;
-        // Lazy-load messages for the active chat
         final msgs = await cache?.loadMessages(activeChatId);
         _messagesByChat[activeChatId] = ObservableList.of(msgs ?? []);
         messages = _messagesByChat[activeChatId]!;
         try { repo.setActiveChat(activeChatId); } catch (_) {}
-        // Restore conversation context for AI from persisted messages
         _restoreContext(activeChatId, msgs);
       }
     } catch (_) {}
-    await repo.createSession();
+    try {
+      await repo.createSession();
+      connectionError = null;
+    } catch (e) {
+      connectionError = 'Backend connection failed: $e';
+    }
   }
 
   @action

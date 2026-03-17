@@ -385,6 +385,17 @@ class OSAILauncher:
                 self.logger.error("Failed to start Flutter. Exiting.")
                 sys.exit(1)
 
+            # Monitor Flutter process — when it exits, shutdown everything
+            def watch_flutter():
+                if self.flutter_process:
+                    self.flutter_process.wait()
+                    self.logger.info("Flutter process exited, shutting down...")
+                    if self.tray_icon:
+                        self.tray_icon.stop()
+
+            flutter_watcher = threading.Thread(target=watch_flutter, daemon=True)
+            flutter_watcher.start()
+
             # Setup and run tray (blocking call)
             self.setup_tray()
             self.logger.info("Starting system tray...")

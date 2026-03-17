@@ -209,10 +209,10 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
-                      const SizedBox(width: 8),
+                      Icon(Icons.psychology, size: 14, color: context.themeColors.assistantBubbleFg),
+                      const SizedBox(width: 6),
                       Flexible(
                         child: Text(
                           m.text ?? '',
@@ -220,7 +220,7 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                           style: context.theme.style((t) => t.bodySmall, (c) => c.assistantBubbleFg),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: context.themeColors.assistantBubbleFg)),
                     ],
                   ),
@@ -228,30 +228,27 @@ class _ChatMessagesListState extends State<ChatMessagesList> {
                 return _withUsageBadge(bubble, nextUsage);
               }
               // Completed thought: render with markdown
-              final bubble = Container(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                decoration: BoxDecoration(
-                  color: context.themeColors.assistantBubbleBg,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: context.themeColors.surfaceBorder),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.psychology, size: 16, color: context.themeColors.assistantBubbleFg),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: (m.text != null && m.text!.isNotEmpty)
-                          ? MarkdownMessage(text: m.text!)
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
+              final maxBubbleWidth = MediaQuery.of(context).size.width * 0.85;
+              final bubble = IntrinsicWidth(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                  constraints: BoxConstraints(maxWidth: maxBubbleWidth),
+                  decoration: BoxDecoration(
+                    color: context.themeColors.assistantBubbleBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: context.themeColors.surfaceBorder),
+                  ),
+                  child: (m.text != null && m.text!.isNotEmpty)
+                      ? MarkdownMessage(text: m.text!)
+                      : const SizedBox.shrink(),
                 ),
               );
               if (m.text == null || m.text!.isEmpty) return _withUsageBadge(bubble, nextUsage);
               return _withUsageBadge(bubble, nextUsage, copyText: m.text);
+            }
+            if (m.kind == 'system') {
+              return _SystemChip(text: m.text ?? '', isError: m.meta?['isError'] == true);
             }
             final bubble = _MessageBubble(role: m.role, text: m.text ?? '', ts: m.ts);
             final align = m.role == 'user' ? Alignment.centerRight : Alignment.centerLeft;
@@ -827,4 +824,52 @@ class _UsageBadge extends StatelessWidget {
   }
 }
 
+/// Compact centered chip for system notifications (e.g. "Stopped by user.").
+class _SystemChip extends StatelessWidget {
+  final String text;
+  final bool isError;
+  const _SystemChip({required this.text, this.isError = false});
 
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fgColor = isError
+        ? colorScheme.error
+        : colorScheme.onSurfaceVariant;
+    final bgColor = isError
+        ? colorScheme.error.withValues(alpha: 0.08)
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.08);
+    final borderColor = isError
+        ? colorScheme.error.withValues(alpha: 0.2)
+        : colorScheme.onSurfaceVariant.withValues(alpha: 0.15);
+    final icon = isError ? Icons.error_outline : Icons.info_outline;
+
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: fgColor),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                text,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: fgColor,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

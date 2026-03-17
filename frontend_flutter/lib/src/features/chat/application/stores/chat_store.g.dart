@@ -199,6 +199,22 @@ mixin _$ChatStore on _ChatStore, Store {
     });
   }
 
+  late final _$connectionErrorAtom =
+      Atom(name: '_ChatStore.connectionError', context: context);
+
+  @override
+  String? get connectionError {
+    _$connectionErrorAtom.reportRead();
+    return super.connectionError;
+  }
+
+  @override
+  set connectionError(String? value) {
+    _$connectionErrorAtom.reportWrite(value, super.connectionError, () {
+      super.connectionError = value;
+    });
+  }
+
   late final _$sendTaskAsyncAction =
       AsyncAction('_ChatStore.sendTask', context: context);
 
@@ -273,7 +289,8 @@ totalUsd: ${totalUsd},
 totalInputTokens: ${totalInputTokens},
 totalOutputTokens: ${totalOutputTokens},
 running: ${running},
-connection: ${connection}
+connection: ${connection},
+connectionError: ${connectionError}
     ''';
   }
 }

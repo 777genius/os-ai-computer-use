@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +30,10 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  /// Preserves ChatInputComposer state (incl. TextEditingController)
+  /// across overlay/normal mode switches that change the widget tree structure.
+  final _inputKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -167,10 +172,18 @@ class _ChatScreenState extends State<ChatScreen> {
       color: Theme.of(context).colorScheme.surface.withValues(alpha: bgAlpha),
       child: UploadOverlay(
         child: _ChatDropArea(
-          child: const Column(
+          child: Column(
             children: [
-              Expanded(child: ChatMessagesList()),
-              ChatInputComposer(),
+              Observer(builder: (_) {
+                final store = context.read<ChatStore?>();
+                final error = store?.connectionError;
+                if (error != null) {
+                  return _ConnectionErrorBanner(error: error);
+                }
+                return const SizedBox.shrink();
+              }),
+              const Expanded(child: ChatMessagesList()),
+              ChatInputComposer(key: _inputKey),
             ],
           ),
         ),
@@ -220,12 +233,23 @@ class _AppBarTitle extends StatelessWidget {
 
       final statusDot = _StatusDot(connection: conn);
 
+      final statusTooltip = Tooltip(
+        message: switch (conn) {
+          ConnectionStatus.connected => 'Connected',
+          ConnectionStatus.connecting => 'Connecting...',
+          ConnectionStatus.disconnected => 'Disconnected',
+          ConnectionStatus.offline => 'Offline',
+          ConnectionStatus.error => 'Connection error',
+        },
+        child: statusDot,
+      );
+
       // In overlay mode: just title + status, no usage line
       if (isOverlay) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            statusDot,
+            statusTooltip,
             const SizedBox(width: 6),
             Text(
               'OS AI',
@@ -273,16 +297,7 @@ class _AppBarTitle extends StatelessWidget {
                     ),
               ),
               const SizedBox(width: 8),
-              Tooltip(
-                message: switch (conn) {
-                  ConnectionStatus.connected => 'Connected',
-                  ConnectionStatus.connecting => 'Connecting...',
-                  ConnectionStatus.disconnected => 'Disconnected',
-                  ConnectionStatus.offline => 'Offline',
-                  ConnectionStatus.error => 'Connection error',
-                },
-                child: statusDot,
-              ),
+              statusTooltip,
             ],
           ),
           if (usageLine != null)
@@ -439,6 +454,58 @@ class _ChatDropAreaState extends State<_ChatDropArea> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ConnectionErrorBanner extends StatelessWidget {
+  final String? error;
+  const _ConnectionErrorBanner({this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final errorText = error ?? 'Cannot connect to backend server';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      color: colorScheme.errorContainer,
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: 18, color: colorScheme.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SelectableText(
+              errorText,
+              style: TextStyle(fontSize: 12, color: colorScheme.onErrorContainer),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Copy error',
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: errorText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Error copied'), duration: Duration(seconds: 1)),
+              );
+            },
+            icon: Icon(Icons.copy, size: 16, color: colorScheme.onErrorContainer),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          ),
+          IconButton(
+            tooltip: 'Retry connection',
+            onPressed: () {
+              final store = context.read<ChatStore?>();
+              store?.init();
+            },
+            icon: Icon(Icons.refresh, size: 18, color: colorScheme.onErrorContainer),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          ),
+        ],
+      ),
     );
   }
 }

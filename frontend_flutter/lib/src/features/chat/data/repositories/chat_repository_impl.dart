@@ -94,18 +94,18 @@ class ChatRepositoryImpl implements ChatRepository {
           _runningCtrl.add(false);
           _msgCtrl.add(ChatMessage(
             id: _nextId(),
-            role: 'assistant',
+            role: 'system',
             ts: DateTime.now(),
-            kind: 'text',
+            kind: 'system',
             text: 'Server connection closed.',
           ));
         }, onError: (_) {
           _runningCtrl.add(false);
           _msgCtrl.add(ChatMessage(
             id: _nextId(),
-            role: 'assistant',
+            role: 'system',
             ts: DateTime.now(),
-            kind: 'text',
+            kind: 'system',
             text: 'Server connection error.',
           ));
         });
@@ -116,9 +116,10 @@ class ChatRepositoryImpl implements ChatRepository {
         });
         _startHealthChecks();
       }
-    } catch (_) {
+    } catch (e) {
       _runningCtrl.add(false);
-      return '';
+      debugPrint('createSession error: $e');
+      rethrow;
     }
     // Immediately probe session to force early server response -> flips status to connected when backend is alive
     final pingId = _nextId();
@@ -296,9 +297,9 @@ class ChatRepositoryImpl implements ChatRepository {
         if (status == 'fail' && error != null && error.isNotEmpty) {
           _msgCtrl.add(ChatMessage(
             id: _nextId(),
-            role: 'assistant',
+            role: 'system',
             ts: DateTime.now(),
-            kind: 'text',
+            kind: 'system',
             text: error,
             meta: const {'isError': true},
           ));
@@ -433,7 +434,7 @@ class ChatRepositoryImpl implements ChatRepository {
     }
     // Немедленно погасим флаг выполнения, чтобы кнопка стоп скрылась в UI
     _runningCtrl.add(false);
-    _msgCtrl.add(ChatMessage(id: _nextId(), role: 'assistant', ts: DateTime.now(), kind: 'text', text: 'Stopped by user.'));
+    _msgCtrl.add(ChatMessage(id: _nextId(), role: 'system', ts: DateTime.now(), kind: 'system', text: 'Stopped by user.'));
   }
 
   @override

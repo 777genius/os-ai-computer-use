@@ -43,19 +43,28 @@ class WebSocketRPCHandler:
         self._logger = logging.getLogger(LOGGER_NAME)
 
     async def handle(self, websocket: WebSocket) -> None:
-        # Extract API key from WebSocket query parameters (sent by frontend)
-        # Store in local variable to avoid race conditions between concurrent connections
+        # Extract API keys from WebSocket query parameters (sent by frontend)
         query_params = websocket.query_params
-        api_key = (
-            query_params.get('api_key')
-            or query_params.get('anthropic_api_key')
-            or query_params.get('openai_api_key')
-        )
+        api_keys = {
+            'anthropic': query_params.get('anthropic_api_key'),
+            'openai': query_params.get('openai_api_key'),
+        }
+        # Legacy: single api_key param
+        legacy_key = query_params.get('api_key')
 
-        if api_key:
-            self._logger.info("API key provided via WebSocket query params")
+        def get_api_key(provider: str | None) -> str | None:
+            """Get the appropriate API key for the given provider."""
+            p = provider or _DEFAULT_PROVIDER
+            key = api_keys.get(p)
+            if key:
+                return key
+            # Fallback to legacy single key
+            return legacy_key
+
+        if any(v for v in api_keys.values() if v):
+            self._logger.info("API keys provided via WebSocket query params")
         else:
-            self._logger.info("No API key in WebSocket params, will use environment variable")
+            self._logger.info("No API keys in WebSocket params, will use environment variables")
 
         metrics.inc("ws_connections", 1)
         try:
@@ -79,7 +88,7 @@ class WebSocketRPCHandler:
                     provider = params.get("provider")
                     provider_display = _PROVIDER_DISPLAY.get(provider or _DEFAULT_PROVIDER, (provider or _DEFAULT_PROVIDER).title())
                     try:
-                        session_id, client, tools = self._create_session(provider, api_key=api_key)
+                        session_id, client, tools = self._create_session(provider, api_key=get_api_key(provider))
                         self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
                         await self._send_result(websocket, req_id, {
                             "sessionId": session_id,
@@ -106,7 +115,7 @@ class WebSocketRPCHandler:
 
                     # Build session and run orchestration in background
                     try:
-                        session_id, client, tools = self._create_session(provider, api_key=api_key)
+                        session_id, client, tools = self._create_session(provider, api_key=get_api_key(provider))
                     except RuntimeError as e:
                         self._logger.warning(
                             "agent.run failed (provider=%s): %s",

@@ -92,9 +92,6 @@ class MainFlutterWindow: NSPanel {
     super.awakeFromNib()
   }
 
-  // Track previously active app to restore focus after our panel interaction
-  private var previousApp: NSRunningApplication?
-
   override func becomeKey() {
     super.becomeKey()
   }
@@ -103,37 +100,13 @@ class MainFlutterWindow: NSPanel {
     super.resignKey()
   }
 
-  // Intercept events before Flutter — make key + activate app for Flutter,
-  // then schedule reactivation of the previous app so clicking back works immediately
+  // Intercept events before Flutter — make key + set first responder on click
   override func sendEvent(_ event: NSEvent) {
     if event.type == .leftMouseDown || event.type == .rightMouseDown {
       if !self.isKeyWindow {
-        // Remember which app was active before us
-        if let frontmost = NSWorkspace.shared.frontmostApplication,
-           frontmost.bundleIdentifier != Bundle.main.bundleIdentifier {
-          previousApp = frontmost
-        }
-
         self.makeKey()
         if let flutterView = findFlutterView(in: self.contentView) {
           self.makeFirstResponder(flutterView)
-        }
-
-        // Briefly activate our app so Flutter processes the click,
-        // then restore the previous app after a short delay
-        if #available(macOS 14.0, *) {
-          NSApp.activate()
-        } else {
-          NSApp.activate(ignoringOtherApps: true)
-        }
-
-        // After Flutter processes the click, give focus back to previous app
-        // so clicking on it won't require a double-click
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-          if let prev = self?.previousApp, self?.isKeyWindow == true {
-            prev.activate()
-            self?.previousApp = nil
-          }
         }
       }
     }
