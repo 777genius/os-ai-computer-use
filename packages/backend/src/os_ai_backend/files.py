@@ -10,18 +10,32 @@ import threading
 import time
 
 
+import sys
+
+
 def _default_root() -> Path:
     base = os.getenv("OS_AI_BACKEND_FILES_DIR")
     if base:
         p = Path(base)
+    elif sys.platform == "win32":
+        local = os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))
+        p = Path(local) / "OS AI" / "files"
     else:
         p = Path(tempfile.gettempdir()) / "os_ai_backend_files"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
+_WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {f"COM{i}" for i in range(1, 10)} | {f"LPT{i}" for i in range(1, 10)}
+
+
 def _sanitize_filename(name: str) -> str:
-    return "".join(ch for ch in name if ch.isalnum() or ch in (".", "-", "_", " ")).strip().replace(" ", "_")
+    safe = "".join(ch for ch in name if ch.isalnum() or ch in (".", "-", "_", " ")).strip().replace(" ", "_")
+    # Защита от зарезервированных имён Windows (CON, PRN, NUL и т.д.)
+    stem = safe.split(".")[0].upper()
+    if stem in _WINDOWS_RESERVED:
+        safe = f"_{safe}"
+    return safe
 
 
 @dataclass

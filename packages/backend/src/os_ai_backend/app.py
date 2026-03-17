@@ -120,7 +120,23 @@ def create_app() -> FastAPI:
     return app
 
 
+def _ensure_std_streams() -> None:
+    """Гарантирует, что sys.stdout/stderr не None.
+
+    На Windows при запуске без консоли (PyInstaller --noconsole)
+    Python ставит sys.stdout = sys.stderr = None,
+    и uvicorn падает с AttributeError: 'NoneType' has no attribute 'isatty'.
+    """
+    import sys
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
+
+
 def main() -> None:
+    _ensure_std_streams()
+
     debug = os.getenv("OS_AI_BACKEND_DEBUG", "0") not in ("", "0", "false", "False")
     setup_logging(debug=debug)
 
@@ -132,15 +148,9 @@ def main() -> None:
     import uvicorn
 
     uvicorn.run(
-        "os_ai_backend.app:create_app",
+        create_app(),
         host=host,
         port=port,
-        factory=True,
         reload=False,
         log_level="debug" if debug else "info",
     )
-
-
-app = create_app()
-
-

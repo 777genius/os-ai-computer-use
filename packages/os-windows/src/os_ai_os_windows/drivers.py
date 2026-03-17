@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Optional, Tuple
 
 import pyautogui
@@ -54,7 +55,7 @@ class WindowsMouse:
                 ny = int(round(sy + (ey - sy) * (i / float(steps))))
                 pyautogui.moveTo(nx, ny)
                 if delay_ms > 0:
-                    pyautogui.sleep(max(0.0, float(delay_ms) / 1000.0))
+                    time.sleep(max(0.0, float(delay_ms) / 1000.0))
         pyautogui.mouseUp(button="left")
 
 

@@ -3,12 +3,16 @@ from __future__ import annotations
 import importlib
 import os
 import platform
+import sys
 from typing import Optional
 
 from .drivers import PlatformDrivers
 
 
 def _load_entry_point(ep_group: str, name: str):
+    # В PyInstaller entry_points из pyproject.toml отсутствуют — пропускаем.
+    if getattr(sys, "frozen", False):
+        return None
     try:
         import importlib.metadata as md  # Python 3.8+
     except Exception:

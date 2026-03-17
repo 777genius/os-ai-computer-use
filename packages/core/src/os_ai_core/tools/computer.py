@@ -187,6 +187,17 @@ def _capture_driver_image():
 
 
 def _find_project_root(start_dir: str) -> str:
+    # В замороженном бандле (PyInstaller) __file__ указывает на _MEIPASS (readonly temp).
+    # Сохраняем скриншоты в user-writable путь.
+    if getattr(sys, "frozen", False):
+        if sys.platform == "win32":
+            base = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+            return os.path.join(base, "OS AI")
+        elif sys.platform == "darwin":
+            return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "OS AI")
+        else:
+            return os.path.join(os.path.expanduser("~"), ".local", "share", "os-ai")
+
     cur = os.path.abspath(start_dir)
     sentinel_files = {"pyproject.toml", "requirements.txt", "Makefile"}
     up_limit = 8

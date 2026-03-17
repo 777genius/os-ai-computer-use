@@ -18,11 +18,40 @@ import platform
 from pathlib import Path
 from typing import Optional
 
+
+# --- Windows PyInstaller noconsole fix ---
+# При console=False PyInstaller ставит sys.stdout = sys.stderr = None,
+# что ломает logging.StreamHandler, uvicorn и любой код вызывающий .write()/.isatty().
+# Подменяем None-потоки до любой инициализации.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
+# --- Windows DPI awareness ---
+# PyInstaller-бандлы по умолчанию DPI-unaware, из-за чего pyautogui.size()
+# и pyautogui.screenshot() возвращают координаты в разных масштабах на HiDPI мониторах.
+# Устанавливаем Per-Monitor DPI awareness до любого GUI-вызова.
+if platform.system() == "Windows":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()  # fallback для Windows 7/8
+        except Exception:
+            pass
+
 try:
     import pystray
 except ImportError:
     pystray = None  # type: ignore[assignment]
-from PIL import Image, ImageDraw
+
+try:
+    from PIL import Image, ImageDraw
+except ImportError:
+    Image = None  # type: ignore[assignment,misc]
+    ImageDraw = None  # type: ignore[assignment]
 
 
 # Ensure all workspace package sources are importable

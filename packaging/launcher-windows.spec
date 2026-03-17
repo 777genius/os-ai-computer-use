@@ -31,19 +31,43 @@ hiddenimports = [
     'pystray', 'pystray._win32',
     # PyAutoGUI stack on Windows
     'pyautogui', 'pyscreeze', 'mouseinfo', 'pygetwindow', 'pytweening',
+    'pyperclip',
     'PIL', 'PIL.Image', 'PIL.ImageFile', 'PIL.PngImagePlugin', 'PIL.JpegImagePlugin',
     # pywin32 helpers
     'win32api', 'win32con', 'win32gui', 'win32process', 'win32ui', 'pywintypes',
     # Backend
     'uvicorn', 'uvicorn.loops', 'uvicorn.loops.auto', 'uvicorn.protocols',
-    'uvicorn.protocols.http', 'uvicorn.protocols.http.auto', 'uvicorn.lifespan', 'uvicorn.lifespan.on',
-    'fastapi', 'starlette', 'pydantic', 'websockets',
-    # Internal packages
-    'os_ai_core', 'os_ai_core.tools.computer', 'os_ai_os', 'os_ai_os_windows',
-    'os_ai_backend', 'os_ai_backend.app',
-    'os_ai_llm', 'os_ai_llm_anthropic', 'os_ai_llm_openai',
-    # Provider clients
-    'anthropic', 'openai', 'httpx', 'anyio',
+    'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+    'uvicorn.protocols.websockets.websockets_impl',
+    'uvicorn.protocols.websockets.wsproto_impl',
+    'uvicorn.lifespan', 'uvicorn.lifespan.on',
+    'fastapi', 'starlette', 'starlette.routing', 'starlette.responses',
+    'starlette.middleware', 'starlette.websockets',
+    'pydantic', 'websockets', 'websockets.legacy', 'websockets.legacy.server',
+    # DI container
+    'injector',
+    # Internal packages — top-level + key submodules
+    'os_ai_core', 'os_ai_core.tools.computer', 'os_ai_core.config', 'os_ai_core.di',
+    'os_ai_core.orchestrator', 'os_ai_core.tools.registry',
+    'os_ai_core.utils.logger', 'os_ai_core.utils.conversation_optimizer',
+    'os_ai_os', 'os_ai_os.api', 'os_ai_os.platform', 'os_ai_os.platform.factory',
+    'os_ai_os.platform.drivers', 'os_ai_os.defaults', 'os_ai_os.config',
+    'os_ai_os.ports', 'os_ai_os.ports.mouse', 'os_ai_os.ports.keyboard',
+    'os_ai_os.ports.screen', 'os_ai_os.ports.overlay', 'os_ai_os.ports.sound',
+    'os_ai_os.ports.permissions', 'os_ai_os.ports.types',
+    'os_ai_os_windows', 'os_ai_os_windows.drivers',
+    'os_ai_backend', 'os_ai_backend.app', 'os_ai_backend.config',
+    'os_ai_backend.ws', 'os_ai_backend.security', 'os_ai_backend.files',
+    'os_ai_backend.jobs', 'os_ai_backend.metrics', 'os_ai_backend.settings',
+    'os_ai_backend.sessions',
+    'os_ai_llm', 'os_ai_llm.config', 'os_ai_llm.interfaces', 'os_ai_llm.types',
+    'os_ai_llm_anthropic', 'os_ai_llm_anthropic.adapters_anthropic', 'os_ai_llm_anthropic.config',
+    'os_ai_llm_openai', 'os_ai_llm_openai.adapters_openai', 'os_ai_llm_openai.config',
+    'os_ai_llm_openai.action_converter',
+    # Provider clients + deps
+    'anthropic', 'openai', 'httpx', 'httpcore', 'h11', 'sniffio', 'certifi', 'idna',
+    'anyio',
 ]
 
 a = Analysis(

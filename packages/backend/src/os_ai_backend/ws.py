@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import uuid
 from typing import Any, Dict, Optional
 
@@ -23,6 +24,9 @@ import pyautogui
 
 from os_ai_llm.config import COMPUTER_TOOL_TYPES as _COMPUTER_TOOL_TYPES, LLM_PROVIDER as _DEFAULT_PROVIDER
 _PROVIDER_DISPLAY = {"anthropic": "Anthropic", "openai": "OpenAI"}
+
+# pyautogui не является thread-safe — только один agent.run одновременно.
+_agent_run_lock = threading.Lock()
 from .jobs import jobs, Job
 from .metrics import metrics
 
@@ -318,8 +322,12 @@ class WebSocketRPCHandler:
                 "provider_context": orch.last_provider_context,
             }
 
+        def _locked_blocking_run():
+            with _agent_run_lock:
+                return _blocking_run()
+
         try:
-            result = await loop.run_in_executor(None, _blocking_run)
+            result = await loop.run_in_executor(None, _locked_blocking_run)
         except Exception as exc:
             logging.getLogger(LOGGER_NAME).exception("Job failed: %s", exc)
             await self._send_event(websocket, "event.final", {"jobId": job_id, "status": "fail", "error": str(exc)})
@@ -358,10 +366,8 @@ class WebSocketRPCHandler:
             self._logger.debug("Failed to send event %s: %s", method, e)
 
     def _dumps(self, obj: Any) -> str:
-        try:
-            return json.dumps(obj).decode()  # type: ignore[attr-defined]
-        except Exception:
-            return json.dumps(obj)  # type: ignore[no-any-return]
+        result = json.dumps(obj)
+        return result.decode() if isinstance(result, bytes) else result  # type: ignore[union-attr]
 
 
 

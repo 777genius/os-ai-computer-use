@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Dict, Any, Tuple
 
-from config.settings import (
+from os_ai_core.config import (
     SIMPLE_STEP_MAX_TOKENS,
     HISTORY_MAX_MESSAGES,
     HISTORY_SUMMARY_MAX_CHARS,
