@@ -1,0 +1,2 @@
+[os_ai_os.drivers]
+linux = os_ai_os_linux.drivers:make_drivers

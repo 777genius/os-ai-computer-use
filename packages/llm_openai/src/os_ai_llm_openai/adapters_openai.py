@@ -13,9 +13,11 @@ import json
 from typing import Any, Dict, List, Optional
 
 import httpx
-from openai import OpenAI, RateLimitError, APIStatusError, APIConnectionError, APITimeoutError
+from openai import AzureOpenAI, OpenAI, RateLimitError, APIStatusError, APIConnectionError, APITimeoutError
 
 from os_ai_llm_openai.config import (
+    AZURE_OPENAI_API_VERSION,
+    AZURE_OPENAI_MODEL_NAME,
     OPENAI_MODEL_NAME,
     OPENAI_API_TIMEOUT_SECONDS,
     OPENAI_API_MAX_RETRIES,
@@ -430,3 +432,46 @@ class OpenAIClient(LLMClient):
         if not parts:
             return "success" if not result.is_error else "error"
         return "\n".join(parts)
+
+
+class AzureOpenAIClient(OpenAIClient):
+    """Azure OpenAI Computer Use adapter via Responses API.
+
+    Azure OpenAI uses a deployment name in the Responses API ``model`` field.
+    Configure it with AZURE_OPENAI_DEPLOYMENT; this app defaults to the
+    requested ``computer-use-preview`` deployment name.
+    """
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model_name: Optional[str] = None,
+        azure_endpoint: Optional[str] = None,
+        api_version: Optional[str] = None,
+    ) -> None:
+        key = api_key or os.environ.get("AZURE_OPENAI_API_KEY")
+        endpoint = azure_endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")
+        version = api_version or AZURE_OPENAI_API_VERSION
+        if not key:
+            raise RuntimeError(
+                "AZURE_OPENAI_API_KEY is not set. "
+                "Provide it via the app Settings or set the AZURE_OPENAI_API_KEY environment variable."
+            )
+        if not endpoint:
+            raise RuntimeError(
+                "AZURE_OPENAI_ENDPOINT is not set. "
+                "Provide your Azure OpenAI resource endpoint in Settings or set AZURE_OPENAI_ENDPOINT."
+            )
+        self._client = AzureOpenAI(
+            api_key=key,
+            azure_endpoint=endpoint,
+            api_version=version,
+            timeout=httpx.Timeout(float(OPENAI_API_TIMEOUT_SECONDS)),
+            max_retries=OPENAI_API_MAX_RETRIES,
+        )
+        self._model = model_name or AZURE_OPENAI_MODEL_NAME
+        self._azure_endpoint = endpoint
+        self._azure_api_version = version
+
+    def get_provider_name(self) -> str:
+        return "azure_openai"

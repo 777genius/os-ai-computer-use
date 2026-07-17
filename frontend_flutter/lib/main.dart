@@ -50,6 +50,12 @@ Future<AppConfig> _loadInitialConfig() async {
     return AppConfig(
       anthropicApiKey: keys['anthropic'],
       openaiApiKey: keys['openai'],
+      azureOpenAIApiKey: keys['azure_openai'],
+      azureOpenAIEndpoint: keys['azure_openai_endpoint'],
+      azureOpenAIDeployment:
+          keys['azure_openai_deployment'] ?? 'computer-use-preview',
+      azureOpenAIApiVersion:
+          keys['azure_openai_api_version'] ?? '2025-04-01-preview',
       activeProvider: savedProvider ?? 'anthropic',
       userPreferences: userPreferences,
     );

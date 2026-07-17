@@ -11,6 +11,8 @@ src/os_ai_backend/security.py
 src/os_ai_backend/sessions.py
 src/os_ai_backend/settings.py
 src/os_ai_backend/ws.py
+src/os_ai_backend/ws_approval.py
+src/os_ai_backend/ws_event_sink.py
 src/os_ai_backend.egg-info/PKG-INFO
 src/os_ai_backend.egg-info/SOURCES.txt
 src/os_ai_backend.egg-info/dependency_links.txt

@@ -19,6 +19,10 @@ class SecureStorageService {
   // Storage keys
   static const String _anthropicApiKeyKey = 'anthropic_api_key';
   static const String _openaiApiKeyKey = 'openai_api_key';
+  static const String _azureOpenAIApiKeyKey = 'azure_openai_api_key';
+  static const String _azureOpenAIEndpointKey = 'azure_openai_endpoint';
+  static const String _azureOpenAIDeploymentKey = 'azure_openai_deployment';
+  static const String _azureOpenAIApiVersionKey = 'azure_openai_api_version';
   static const String _hasCompletedSetupKey = 'has_completed_setup';
   static const String _activeProviderKey = 'active_provider';
   static const String _userPreferencesKey = 'user_preferences';
@@ -131,6 +135,26 @@ class SecureStorageService {
   Future<bool> hasOpenAIApiKey() async => (await getOpenAIApiKey()) != null;
   Future<void> deleteOpenAIApiKey() => _remove(_openaiApiKeyKey);
 
+  // Azure OpenAI
+
+  Future<void> saveAzureOpenAIApiKey(String apiKey) =>
+      _set(_azureOpenAIApiKeyKey, apiKey);
+  Future<String?> getAzureOpenAIApiKey() => _get(_azureOpenAIApiKeyKey);
+  Future<void> deleteAzureOpenAIApiKey() => _remove(_azureOpenAIApiKeyKey);
+
+  Future<void> saveAzureOpenAIEndpoint(String endpoint) =>
+      _set(_azureOpenAIEndpointKey, endpoint);
+  Future<String?> getAzureOpenAIEndpoint() => _get(_azureOpenAIEndpointKey);
+  Future<void> deleteAzureOpenAIEndpoint() => _remove(_azureOpenAIEndpointKey);
+
+  Future<void> saveAzureOpenAIDeployment(String deployment) =>
+      _set(_azureOpenAIDeploymentKey, deployment);
+  Future<String?> getAzureOpenAIDeployment() => _get(_azureOpenAIDeploymentKey);
+
+  Future<void> saveAzureOpenAIApiVersion(String apiVersion) =>
+      _set(_azureOpenAIApiVersionKey, apiVersion);
+  Future<String?> getAzureOpenAIApiVersion() => _get(_azureOpenAIApiVersionKey);
+
   // Active provider
 
   Future<void> saveActiveProvider(String provider) =>
@@ -166,6 +190,10 @@ class SecureStorageService {
     return {
       'anthropic': await _get(_anthropicApiKeyKey),
       'openai': await _get(_openaiApiKeyKey),
+      'azure_openai': await _get(_azureOpenAIApiKeyKey),
+      'azure_openai_endpoint': await _get(_azureOpenAIEndpointKey),
+      'azure_openai_deployment': await _get(_azureOpenAIDeploymentKey),
+      'azure_openai_api_version': await _get(_azureOpenAIApiVersionKey),
     };
   }
 }

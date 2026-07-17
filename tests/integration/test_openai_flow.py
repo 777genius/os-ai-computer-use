@@ -9,7 +9,7 @@ import pytest
 from os_ai_llm.types import (
     Message, TextPart, ImagePart, ToolDescriptor, ToolCall, ToolResult, ProviderPart, LLMResponse, Usage,
 )
-from os_ai_llm_openai.adapters_openai import OpenAIClient
+from os_ai_llm_openai.adapters_openai import AzureOpenAIClient, OpenAIClient
 
 
 def _make_mock_response(response_id: str, output_items: list, input_tokens: int = 10, output_tokens: int = 5):
@@ -69,6 +69,24 @@ def client():
             c = OpenAIClient(api_key="test-key")
             c._mock_openai = MockOpenAI.return_value
             yield c
+
+
+def test_azure_openai_client_uses_deployment_endpoint_and_api_version():
+    with patch("os_ai_llm_openai.adapters_openai.AzureOpenAI") as MockAzureOpenAI:
+        c = AzureOpenAIClient(
+            api_key="azure-key",
+            azure_endpoint="https://example.openai.azure.com",
+            model_name="computer-use-preview",
+            api_version="2025-04-01-preview",
+        )
+
+    assert c.get_provider_name() == "azure_openai"
+    assert c.get_model_name() == "computer-use-preview"
+    MockAzureOpenAI.assert_called_once()
+    kwargs = MockAzureOpenAI.call_args.kwargs
+    assert kwargs["api_key"] == "azure-key"
+    assert kwargs["azure_endpoint"] == "https://example.openai.azure.com"
+    assert kwargs["api_version"] == "2025-04-01-preview"
 
 
 def test_provider_context_roundtrip(client):

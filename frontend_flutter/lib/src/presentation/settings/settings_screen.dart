@@ -25,8 +25,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _hostController;
   late TextEditingController _portController;
   late TextEditingController _preferencesController;
+  late TextEditingController _azureEndpointController;
+  late TextEditingController _azureDeploymentController;
+  late TextEditingController _azureApiVersionController;
   String _anthropicKey = '';
   String _openaiKey = '';
+  String _azureOpenAIKey = '';
   String _activeProvider = 'anthropic';
 
   bool _isLoading = false;
@@ -40,6 +44,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _portController = TextEditingController(text: config.port.toString());
     _preferencesController =
         TextEditingController(text: config.userPreferences ?? '');
+    _azureEndpointController =
+        TextEditingController(text: config.azureOpenAIEndpoint ?? '');
+    _azureDeploymentController = TextEditingController(
+        text: config.azureOpenAIDeployment ?? 'computer-use-preview');
+    _azureApiVersionController = TextEditingController(
+        text: config.azureOpenAIApiVersion ?? '2025-04-01-preview');
     _loadSavedKeys();
   }
 
@@ -53,6 +63,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _anthropicKey = keys['anthropic'] ?? '';
         _openaiKey = keys['openai'] ?? '';
+        _azureOpenAIKey = keys['azure_openai'] ?? '';
+        _azureEndpointController.text = keys['azure_openai_endpoint'] ?? '';
+        _azureDeploymentController.text =
+            keys['azure_openai_deployment'] ?? 'computer-use-preview';
+        _azureApiVersionController.text =
+            keys['azure_openai_api_version'] ?? '2025-04-01-preview';
         if (savedProvider != null) {
           _activeProvider = savedProvider;
         } else {
@@ -72,6 +88,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _autoDetectProvider() {
     if (_openaiKey.isNotEmpty && _anthropicKey.isEmpty) {
       _activeProvider = 'openai';
+    } else if (_azureOpenAIKey.isNotEmpty && _anthropicKey.isEmpty) {
+      _activeProvider = 'azure_openai';
     } else {
       _activeProvider = 'anthropic';
     }
@@ -82,6 +100,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _hostController.dispose();
     _portController.dispose();
     _preferencesController.dispose();
+    _azureEndpointController.dispose();
+    _azureDeploymentController.dispose();
+    _azureApiVersionController.dispose();
     super.dispose();
   }
 
@@ -104,6 +125,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
       } else {
         await _storage.deleteOpenAIApiKey();
       }
+      if (_azureOpenAIKey.isNotEmpty) {
+        await _storage.saveAzureOpenAIApiKey(_azureOpenAIKey);
+      } else {
+        await _storage.deleteAzureOpenAIApiKey();
+      }
+      final azureEndpoint = _azureEndpointController.text.trim();
+      if (azureEndpoint.isNotEmpty) {
+        await _storage.saveAzureOpenAIEndpoint(azureEndpoint);
+      } else {
+        await _storage.deleteAzureOpenAIEndpoint();
+      }
+      await _storage.saveAzureOpenAIDeployment(
+          _azureDeploymentController.text.trim().isEmpty
+              ? 'computer-use-preview'
+              : _azureDeploymentController.text.trim());
+      await _storage.saveAzureOpenAIApiVersion(
+          _azureApiVersionController.text.trim().isEmpty
+              ? '2025-04-01-preview'
+              : _azureApiVersionController.text.trim());
       await _storage.saveActiveProvider(_activeProvider);
 
       // Save user preferences
@@ -126,6 +166,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         port: int.tryParse(_portController.text),
         anthropicApiKey: _anthropicKey,
         openaiApiKey: _openaiKey,
+        azureOpenAIApiKey: _azureOpenAIKey,
+        azureOpenAIEndpoint: azureEndpoint,
+        azureOpenAIDeployment: _azureDeploymentController.text.trim().isEmpty
+            ? 'computer-use-preview'
+            : _azureDeploymentController.text.trim(),
+        azureOpenAIApiVersion: _azureApiVersionController.text.trim().isEmpty
+            ? '2025-04-01-preview'
+            : _azureApiVersionController.text.trim(),
         activeProvider: _activeProvider,
         userPreferences: prefs.isEmpty ? '' : prefs,
       );
@@ -278,6 +326,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         'https://platform.openai.com/api-keys',
                         Icons.launch,
                       ),
+                      _buildLinkItem(
+                        'Azure Portal',
+                        'https://portal.azure.com/',
+                        Icons.launch,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -301,6 +354,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     provider: ApiProvider.openai,
                     required: _activeProvider == 'openai',
                     onChanged: (value) => _openaiKey = value,
+                  ),
+                  const SizedBox(height: 24),
+
+                  ApiKeyField(
+                    label: 'Azure OpenAI API Key',
+                    hint: 'Azure OpenAI key',
+                    initialValue: _azureOpenAIKey,
+                    provider: ApiProvider.azureOpenAI,
+                    required: _activeProvider == 'azure_openai',
+                    onChanged: (value) => _azureOpenAIKey = value,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureEndpointController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI Endpoint',
+                      hintText: 'https://your-resource.openai.azure.com',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (_activeProvider != 'azure_openai') return null;
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return 'Azure OpenAI endpoint is required';
+                      final uri = Uri.tryParse(text);
+                      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+                        return 'Enter a valid endpoint URL';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureDeploymentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI Deployment',
+                      hintText: 'computer-use-preview',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureApiVersionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI API Version',
+                      hintText: '2025-04-01-preview',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -441,6 +541,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildProviderSelector() {
     final hasAnthropic = _anthropicKey.isNotEmpty;
     final hasOpenai = _openaiKey.isNotEmpty;
+    final hasAzureOpenAI =
+        _azureOpenAIKey.isNotEmpty && _azureEndpointController.text.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -486,13 +588,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   icon: const Icon(Icons.bolt),
                 ),
+                ButtonSegment(
+                  value: 'azure_openai',
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Azure OpenAI'),
+                      const SizedBox(width: 6),
+                      if (hasAzureOpenAI)
+                        Icon(Icons.check_circle,
+                            color: colorScheme.primary, size: 16)
+                      else
+                        Icon(Icons.warning_amber,
+                            color: colorScheme.error, size: 16),
+                    ],
+                  ),
+                  icon: const Icon(Icons.cloud),
+                ),
               ],
               selected: {_activeProvider},
               onSelectionChanged: (v) =>
                   setState(() => _activeProvider = v.first),
             ),
             if ((_activeProvider == 'anthropic' && !hasAnthropic) ||
-                (_activeProvider == 'openai' && !hasOpenai))
+                (_activeProvider == 'openai' && !hasOpenai) ||
+                (_activeProvider == 'azure_openai' && !hasAzureOpenAI))
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Text(

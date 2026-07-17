@@ -29,7 +29,7 @@ from os_ai_core.tools.registry import ToolRegistry
 from os_ai_llm.config import LLM_PROVIDER as _DEFAULT_PROVIDER
 from .ws_approval import WebSocketApprovalAdapter
 from .ws_event_sink import WebSocketEventSink
-_PROVIDER_DISPLAY = {"anthropic": "Anthropic", "openai": "OpenAI"}
+_PROVIDER_DISPLAY = {"anthropic": "Anthropic", "openai": "OpenAI", "azure_openai": "Azure OpenAI"}
 
 # pyautogui не является thread-safe - только один agent.run одновременно.
 _agent_run_lock = threading.Lock()
@@ -60,6 +60,14 @@ class WebSocketRPCHandler:
         api_keys = {
             'anthropic': query_params.get('anthropic_api_key'),
             'openai': query_params.get('openai_api_key'),
+            'azure_openai': query_params.get('azure_openai_api_key'),
+        }
+        provider_options = {
+            "azure_openai": {
+                "endpoint": query_params.get("azure_openai_endpoint"),
+                "deployment": query_params.get("azure_openai_deployment"),
+                "api_version": query_params.get("azure_openai_api_version"),
+            }
         }
         # Legacy: single api_key param
         legacy_key = query_params.get('api_key')
@@ -72,6 +80,17 @@ class WebSocketRPCHandler:
                 return key
             # Fallback to legacy single key
             return legacy_key
+
+        def get_provider_options(provider: str | None) -> dict[str, dict[str, str | None]] | None:
+            p = provider or _DEFAULT_PROVIDER
+            opts = provider_options.get(p, {})
+            return provider_options if any(v for v in opts.values()) else None
+
+        def create_session_for_provider(provider: str | None):
+            options = get_provider_options(provider)
+            if options is None:
+                return self._create_session(provider, api_key=get_api_key(provider))
+            return self._create_session(provider, api_key=get_api_key(provider), provider_options=options)
 
         if any(v for v in api_keys.values() if v):
             self._logger.info("API keys provided via WebSocket query params")
@@ -101,7 +120,7 @@ class WebSocketRPCHandler:
                     provider_display = _PROVIDER_DISPLAY.get(provider or _DEFAULT_PROVIDER, (provider or _DEFAULT_PROVIDER).title())
                     try:
                         session_id, client, tools, tool_gateway = self._normalize_session(
-                            self._create_session(provider, api_key=get_api_key(provider))
+                            create_session_for_provider(provider)
                         )
                         self._logger.info("session.create -> %s (provider=%s)", session_id, provider or "default")
                         await self._send_result(websocket, req_id, {
@@ -130,7 +149,7 @@ class WebSocketRPCHandler:
                     # Build session and run orchestration in background
                     try:
                         session_id, client, tools, tool_gateway = self._normalize_session(
-                            self._create_session(provider, api_key=get_api_key(provider))
+                            create_session_for_provider(provider)
                         )
                     except RuntimeError as e:
                         self._logger.warning(
@@ -358,8 +377,20 @@ class WebSocketRPCHandler:
         await self._send_event(websocket, "event.final", {"jobId": job_id, **result})
         self._logger.info("agent.run completed job=%s status=%s", job_id, result.get("status"))
 
-    def _create_session(self, provider: Optional[str], api_key: Optional[str] = None) -> tuple[str, LLMClient, ToolRegistry, CompositeToolGateway]:
-        inj = _create_container(provider, api_key=api_key)
+    def _create_session(
+        self,
+        provider: Optional[str],
+        api_key: Optional[str] = None,
+        provider_options: Optional[dict[str, dict[str, str | None]]] = None,
+    ) -> tuple[str, LLMClient, ToolRegistry, CompositeToolGateway]:
+        p = provider or _DEFAULT_PROVIDER
+        provider_options = provider_options or {}
+        options = {
+            k: v
+            for k, v in provider_options.get(p, {}).items()
+            if isinstance(v, str) and v
+        }
+        inj = _create_container(provider, api_key=api_key, provider_options=options)
         client = inj.get(LLMClient)
         tools = inj.get(ToolRegistry)
         try:
@@ -400,10 +431,10 @@ class WebSocketRPCHandler:
 
 
 
-def _create_container(provider: Optional[str] = None, api_key: Optional[str] = None):
+def _create_container(provider: Optional[str] = None, api_key: Optional[str] = None, provider_options: Optional[dict[str, str]] = None):
     # Lazy import to avoid hard dependency at import time (helps tests/CI without injector installed)
     from os_ai_core.di import create_container as _cc  # type: ignore
-    return _cc(provider, api_key=api_key)
+    return _cc(provider, api_key=api_key, provider_options=provider_options)
 
 
 def _application_runner_enabled() -> bool:

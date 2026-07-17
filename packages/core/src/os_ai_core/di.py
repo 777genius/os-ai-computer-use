@@ -17,20 +17,34 @@ from os_ai_core.tools.computer import computer_tool_handler_batch
 
 
 class LLMModule(injector.Module):
-    def __init__(self, provider: Optional[str] = None, api_key: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        provider_options: Optional[dict[str, str]] = None,
+    ) -> None:
         self._provider = (provider or LLM_PROVIDER).lower()
         self._api_key = api_key
+        self._provider_options = provider_options or {}
 
     @injector.provider
     def provide_llm_client(self) -> LLMClient:  # type: ignore[override]
         if self._provider == "openai":
             from os_ai_llm_openai.adapters_openai import OpenAIClient
             return OpenAIClient(api_key=self._api_key)
+        elif self._provider == "azure_openai":
+            from os_ai_llm_openai.adapters_openai import AzureOpenAIClient
+            return AzureOpenAIClient(
+                api_key=self._api_key,
+                model_name=self._provider_options.get("deployment"),
+                azure_endpoint=self._provider_options.get("endpoint"),
+                api_version=self._provider_options.get("api_version"),
+            )
         elif self._provider == "anthropic":
             from os_ai_llm_anthropic.adapters_anthropic import AnthropicClient
             return AnthropicClient(api_key=self._api_key)
         else:
-            raise ValueError(f"Unknown LLM provider: '{self._provider}'. Supported: 'anthropic', 'openai'")
+            raise ValueError(f"Unknown LLM provider: '{self._provider}'. Supported: 'anthropic', 'openai', 'azure_openai'")
 
 
 class ToolsModule(injector.Module):
@@ -65,5 +79,9 @@ class ToolsModule(injector.Module):
         return CompositeToolGateway(providers)
 
 
-def create_container(provider: Optional[str] = None, api_key: Optional[str] = None) -> injector.Injector:
-    return injector.Injector([LLMModule(provider, api_key=api_key), ToolsModule(provider)])
+def create_container(
+    provider: Optional[str] = None,
+    api_key: Optional[str] = None,
+    provider_options: Optional[dict[str, str]] = None,
+) -> injector.Injector:
+    return injector.Injector([LLMModule(provider, api_key=api_key, provider_options=provider_options), ToolsModule(provider)])

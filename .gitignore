@@ -3,6 +3,7 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 **/*.py[cod]
+/\.venv/
 /screenshots/
 /venv/
 /__pycache__/
@@ -10,6 +11,9 @@ __pycache__/
 .pytest_cache/
 .coverage
 .env
+.DS_Store
+*.egg-info/
+**/*.egg-info/
 
 
 .clinerules/byterover-rules.md
@@ -25,4 +29,3 @@ __pycache__/
 /build/
 /dist/
 packaging/AppIcon.icns
-

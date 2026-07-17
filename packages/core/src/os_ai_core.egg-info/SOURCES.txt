@@ -1,6 +1,14 @@
 README.md
 pyproject.toml
 src/os_ai_core/__init__.py
+src/os_ai_core/config.py
+src/os_ai_core/di.py
+src/os_ai_core/orchestrator.py
+src/os_ai_core.egg-info/PKG-INFO
+src/os_ai_core.egg-info/SOURCES.txt
+src/os_ai_core.egg-info/dependency_links.txt
+src/os_ai_core.egg-info/requires.txt
+src/os_ai_core.egg-info/top_level.txt
 src/os_ai_core/adapters/__init__.py
 src/os_ai_core/adapters/approval.py
 src/os_ai_core/adapters/events/__init__.py
@@ -32,8 +40,6 @@ src/os_ai_core/application/services/provider_safety.py
 src/os_ai_core/application/services/tool_execution_ledger.py
 src/os_ai_core/application/use_cases/__init__.py
 src/os_ai_core/application/use_cases/run_agent.py
-src/os_ai_core/config.py
-src/os_ai_core/di.py
 src/os_ai_core/domain/__init__.py
 src/os_ai_core/domain/agent/__init__.py
 src/os_ai_core/domain/agent/events.py
@@ -45,7 +51,6 @@ src/os_ai_core/domain/tools/errors.py
 src/os_ai_core/domain/tools/execution.py
 src/os_ai_core/domain/tools/models.py
 src/os_ai_core/domain/tools/policies.py
-src/os_ai_core/orchestrator.py
 src/os_ai_core/tools/__init__.py
 src/os_ai_core/tools/computer.py
 src/os_ai_core/tools/registry.py
@@ -53,8 +58,3 @@ src/os_ai_core/utils/__init__.py
 src/os_ai_core/utils/conversation_optimizer.py
 src/os_ai_core/utils/costs.py
 src/os_ai_core/utils/logger.py
-src/os_ai_core.egg-info/PKG-INFO
-src/os_ai_core.egg-info/SOURCES.txt
-src/os_ai_core.egg-info/dependency_links.txt
-src/os_ai_core.egg-info/requires.txt
-src/os_ai_core.egg-info/top_level.txt

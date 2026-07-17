@@ -1,5 +1,6 @@
 README.md
 pyproject.toml
+src/os_ai_llm_anthropic/__init__.py
 src/os_ai_llm_anthropic/adapters_anthropic.py
 src/os_ai_llm_anthropic/config.py
 src/os_ai_llm_anthropic.egg-info/PKG-INFO

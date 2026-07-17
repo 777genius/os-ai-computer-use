@@ -1,7 +1,9 @@
 README.md
 pyproject.toml
+src/os_ai_os/__init__.py
 src/os_ai_os/api.py
 src/os_ai_os/config.py
+src/os_ai_os/defaults.py
 src/os_ai_os/virtual_mouse.py
 src/os_ai_os.egg-info/PKG-INFO
 src/os_ai_os.egg-info/SOURCES.txt

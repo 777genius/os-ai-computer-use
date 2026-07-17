@@ -3,6 +3,9 @@ uvicorn[standard]>=0.30
 pydantic>=2.8
 python-multipart>=0.0.9
 os_ai_core>=0.1.0
+os_ai_llm_anthropic>=0.1.0
+os_ai_llm_openai>=0.1.0
+os_ai_mcp>=0.1.0
 
 [:platform_system != "Windows"]
 orjson>=3.10.7

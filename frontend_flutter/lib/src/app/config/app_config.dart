@@ -7,6 +7,10 @@ class AppConfig extends ChangeNotifier {
   int historyPairsLimit;
   String? anthropicApiKey;
   String? openaiApiKey;
+  String? azureOpenAIApiKey;
+  String? azureOpenAIEndpoint;
+  String? azureOpenAIDeployment;
+  String? azureOpenAIApiVersion;
   String activeProvider;
   String? userPreferences;
 
@@ -17,6 +21,10 @@ class AppConfig extends ChangeNotifier {
     this.historyPairsLimit = 6,
     this.anthropicApiKey,
     this.openaiApiKey,
+    this.azureOpenAIApiKey,
+    this.azureOpenAIEndpoint,
+    this.azureOpenAIDeployment = 'computer-use-preview',
+    this.azureOpenAIApiVersion = '2025-04-01-preview',
     this.activeProvider = 'anthropic',
     this.userPreferences,
   });
@@ -30,6 +38,18 @@ class AppConfig extends ChangeNotifier {
     }
     if (openaiApiKey != null && openaiApiKey!.isNotEmpty) {
       extra['openai_api_key'] = openaiApiKey!;
+    }
+    if (azureOpenAIApiKey != null && azureOpenAIApiKey!.isNotEmpty) {
+      extra['azure_openai_api_key'] = azureOpenAIApiKey!;
+    }
+    if (azureOpenAIEndpoint != null && azureOpenAIEndpoint!.isNotEmpty) {
+      extra['azure_openai_endpoint'] = azureOpenAIEndpoint!;
+    }
+    if (azureOpenAIDeployment != null && azureOpenAIDeployment!.isNotEmpty) {
+      extra['azure_openai_deployment'] = azureOpenAIDeployment!;
+    }
+    if (azureOpenAIApiVersion != null && azureOpenAIApiVersion!.isNotEmpty) {
+      extra['azure_openai_api_version'] = azureOpenAIApiVersion!;
     }
 
     if (extra.isNotEmpty) {
@@ -51,6 +71,10 @@ class AppConfig extends ChangeNotifier {
     int? historyPairsLimit,
     String? anthropicApiKey,
     String? openaiApiKey,
+    String? azureOpenAIApiKey,
+    String? azureOpenAIEndpoint,
+    String? azureOpenAIDeployment,
+    String? azureOpenAIApiVersion,
     String? activeProvider,
     String? userPreferences,
   }) {
@@ -78,6 +102,26 @@ class AppConfig extends ChangeNotifier {
     }
     if (openaiApiKey != null && openaiApiKey != this.openaiApiKey) {
       this.openaiApiKey = openaiApiKey;
+      changed = true;
+    }
+    if (azureOpenAIApiKey != null &&
+        azureOpenAIApiKey != this.azureOpenAIApiKey) {
+      this.azureOpenAIApiKey = azureOpenAIApiKey;
+      changed = true;
+    }
+    if (azureOpenAIEndpoint != null &&
+        azureOpenAIEndpoint != this.azureOpenAIEndpoint) {
+      this.azureOpenAIEndpoint = azureOpenAIEndpoint;
+      changed = true;
+    }
+    if (azureOpenAIDeployment != null &&
+        azureOpenAIDeployment != this.azureOpenAIDeployment) {
+      this.azureOpenAIDeployment = azureOpenAIDeployment;
+      changed = true;
+    }
+    if (azureOpenAIApiVersion != null &&
+        azureOpenAIApiVersion != this.azureOpenAIApiVersion) {
+      this.azureOpenAIApiVersion = azureOpenAIApiVersion;
       changed = true;
     }
     if (activeProvider != null && activeProvider != this.activeProvider) {

@@ -11,6 +11,9 @@ Requires-Dist: pydantic>=2.8
 Requires-Dist: python-multipart>=0.0.9
 Requires-Dist: orjson>=3.10.7; platform_system != "Windows"
 Requires-Dist: os_ai_core>=0.1.0
+Requires-Dist: os_ai_llm_anthropic>=0.1.0
+Requires-Dist: os_ai_llm_openai>=0.1.0
+Requires-Dist: os_ai_mcp>=0.1.0
 
 OS AI Backend
 =================

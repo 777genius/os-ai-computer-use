@@ -1,5 +1,6 @@
 README.md
 pyproject.toml
+src/os_ai_llm/__init__.py
 src/os_ai_llm/config.py
 src/os_ai_llm/interfaces.py
 src/os_ai_llm/types.py

@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 enum ApiProvider {
   anthropic,
   openai,
+  azureOpenAI,
 }
 
 /// Result of API key validation
@@ -98,6 +99,12 @@ class ApiKeyValidator {
               'Invalid OpenAI API key format. Please check your key.');
         }
         return ValidationResult.valid();
+
+      case ApiProvider.azureOpenAI:
+        if (apiKey.length < 20) {
+          return ValidationResult.invalid('Azure OpenAI API key is too short');
+        }
+        return ValidationResult.valid();
     }
   }
 
@@ -120,6 +127,8 @@ class ApiKeyValidator {
       case ApiProvider.openai:
         return 'OpenAI API keys start with "sk-" and are typically 40-200 characters long. '
             'Get your key from https://platform.openai.com/api-keys';
+      case ApiProvider.azureOpenAI:
+        return 'Azure OpenAI keys come from your Azure OpenAI resource. You also need the endpoint and deployment name.';
     }
   }
 }

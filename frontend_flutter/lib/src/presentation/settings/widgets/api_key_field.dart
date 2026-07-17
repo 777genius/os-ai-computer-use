@@ -155,6 +155,8 @@ class _ApiKeyFieldState extends State<ApiKeyField> {
         return 'sk-ant-...';
       case ApiProvider.openai:
         return 'sk-...';
+      case ApiProvider.azureOpenAI:
+        return 'Azure OpenAI key';
     }
   }
 }
@@ -166,6 +168,8 @@ extension on ApiKeyValidator {
         return validateAnthropicKey(value);
       case ApiProvider.openai:
         return validateOpenAIKey(value);
+      case ApiProvider.azureOpenAI:
+        return validate(value, expectedProvider: ApiProvider.azureOpenAI);
     }
   }
 }

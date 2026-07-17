@@ -57,12 +57,22 @@ class _ChatInputComposerState extends State<ChatInputComposer> {
     if (cfg.activeProvider == 'openai') {
       return cfg.openaiApiKey != null && cfg.openaiApiKey!.isNotEmpty;
     }
+    if (cfg.activeProvider == 'azure_openai') {
+      return cfg.azureOpenAIApiKey != null &&
+          cfg.azureOpenAIApiKey!.isNotEmpty &&
+          cfg.azureOpenAIEndpoint != null &&
+          cfg.azureOpenAIEndpoint!.isNotEmpty;
+    }
     return cfg.anthropicApiKey != null && cfg.anthropicApiKey!.isNotEmpty;
   }
 
   String get _missingKeyMessage {
     final cfg = context.read<AppConfig>();
-    final name = cfg.activeProvider == 'openai' ? 'OpenAI' : 'Anthropic';
+    final name = cfg.activeProvider == 'openai'
+        ? 'OpenAI'
+        : cfg.activeProvider == 'azure_openai'
+            ? 'Azure OpenAI'
+            : 'Anthropic';
     return 'Enter your $name API key in Settings first';
   }
 

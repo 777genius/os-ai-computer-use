@@ -17,10 +17,24 @@ class FirstRunDialog extends StatefulWidget {
 class _FirstRunDialogState extends State<FirstRunDialog> {
   final _formKey = GlobalKey<FormState>();
   final _storage = GetIt.I<SecureStorageService>();
+  final _azureEndpointController = TextEditingController();
+  final _azureDeploymentController =
+      TextEditingController(text: 'computer-use-preview');
+  final _azureApiVersionController =
+      TextEditingController(text: '2025-04-01-preview');
   String _selectedProvider = 'openai';
   String _anthropicKey = '';
   String _openaiKey = '';
+  String _azureOpenAIKey = '';
   bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _azureEndpointController.dispose();
+    _azureDeploymentController.dispose();
+    _azureApiVersionController.dispose();
+    super.dispose();
+  }
 
   Future<void> _getStarted() async {
     if (!_formKey.currentState!.validate()) return;
@@ -34,6 +48,21 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
       if (_openaiKey.isNotEmpty) {
         await _storage.saveOpenAIApiKey(_openaiKey);
       }
+      if (_azureOpenAIKey.isNotEmpty) {
+        await _storage.saveAzureOpenAIApiKey(_azureOpenAIKey);
+      }
+      final azureEndpoint = _azureEndpointController.text.trim();
+      if (azureEndpoint.isNotEmpty) {
+        await _storage.saveAzureOpenAIEndpoint(azureEndpoint);
+      }
+      await _storage.saveAzureOpenAIDeployment(
+          _azureDeploymentController.text.trim().isEmpty
+              ? 'computer-use-preview'
+              : _azureDeploymentController.text.trim());
+      await _storage.saveAzureOpenAIApiVersion(
+          _azureApiVersionController.text.trim().isEmpty
+              ? '2025-04-01-preview'
+              : _azureApiVersionController.text.trim());
       await _storage.saveActiveProvider(_selectedProvider);
       await _storage.markSetupComplete();
 
@@ -42,6 +71,15 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
       config.update(
         anthropicApiKey: _anthropicKey.isEmpty ? null : _anthropicKey,
         openaiApiKey: _openaiKey.isEmpty ? null : _openaiKey,
+        azureOpenAIApiKey:
+            _azureOpenAIKey.isEmpty ? null : _azureOpenAIKey,
+        azureOpenAIEndpoint: azureEndpoint.isEmpty ? null : azureEndpoint,
+        azureOpenAIDeployment: _azureDeploymentController.text.trim().isEmpty
+            ? 'computer-use-preview'
+            : _azureDeploymentController.text.trim(),
+        azureOpenAIApiVersion: _azureApiVersionController.text.trim().isEmpty
+            ? '2025-04-01-preview'
+            : _azureApiVersionController.text.trim(),
         activeProvider: _selectedProvider,
       );
 
@@ -62,6 +100,7 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
   @override
   Widget build(BuildContext context) {
     final isAnthropic = _selectedProvider == 'anthropic';
+    final isAzureOpenAI = _selectedProvider == 'azure_openai';
 
     return Dialog(
       child: Container(
@@ -102,6 +141,10 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                         value: 'openai',
                         label: Text('OpenAI'),
                         icon: Icon(Icons.bolt)),
+                    ButtonSegment(
+                        value: 'azure_openai',
+                        label: Text('Azure OpenAI'),
+                        icon: Icon(Icons.cloud)),
                   ],
                   selected: {_selectedProvider},
                   onSelectionChanged: (v) =>
@@ -139,7 +182,9 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                             Text(
                               isAnthropic
                                   ? '1. Visit console.anthropic.com'
-                                  : '1. Visit platform.openai.com',
+                                  : isAzureOpenAI
+                                      ? '1. Open your Azure OpenAI resource'
+                                      : '1. Visit platform.openai.com',
                               style: TextStyle(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -165,7 +210,9 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                               onTap: () => _launchUrl(
                                 isAnthropic
                                     ? 'https://console.anthropic.com/'
-                                    : 'https://platform.openai.com/api-keys',
+                                    : isAzureOpenAI
+                                        ? 'https://portal.azure.com/'
+                                        : 'https://platform.openai.com/api-keys',
                               ),
                               child: Row(
                                 children: [
@@ -178,7 +225,9 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                                   Text(
                                     isAnthropic
                                         ? 'Open Anthropic Console'
-                                        : 'Open OpenAI Platform',
+                                        : isAzureOpenAI
+                                            ? 'Open Azure Portal'
+                                            : 'Open OpenAI Platform',
                                     style: TextStyle(
                                       color:
                                           Theme.of(context).colorScheme.primary,
@@ -205,6 +254,51 @@ class _FirstRunDialogState extends State<FirstRunDialog> {
                     required: true,
                     onChanged: (value) => _anthropicKey = value,
                   )
+                else if (isAzureOpenAI) ...[
+                  ApiKeyField(
+                    label: 'Azure OpenAI API Key',
+                    hint: 'Azure OpenAI key',
+                    provider: ApiProvider.azureOpenAI,
+                    required: true,
+                    onChanged: (value) => _azureOpenAIKey = value,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureEndpointController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI Endpoint',
+                      hintText: 'https://your-resource.openai.azure.com',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return 'Azure OpenAI endpoint is required';
+                      final uri = Uri.tryParse(text);
+                      if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+                        return 'Enter a valid endpoint URL';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureDeploymentController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI Deployment',
+                      hintText: 'computer-use-preview',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _azureApiVersionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Azure OpenAI API Version',
+                      hintText: '2025-04-01-preview',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ]
                 else
                   ApiKeyField(
                     label: 'OpenAI API Key',

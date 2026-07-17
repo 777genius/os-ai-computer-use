@@ -41,6 +41,7 @@ Available for:
 | Provider | Model | Computer Use | Status |
 |----------|-------|-------------|--------|
 | **OpenAI** | GPT-5.4 | Batched actions, `previous_response_id` continuity | **Fully supported** |
+| **Azure OpenAI** | `computer-use-preview` deployment | Batched actions, `previous_response_id` continuity | **Supported** |
 | **Anthropic** | Claude Sonnet 4.6 / Opus 4.6 | Single actions, zoom, full message history | **Fully supported** |
 
 Switch providers in **Settings** — enter your API key and select the active provider from the dropdown.
@@ -101,6 +102,7 @@ Requirements:
 - Python 3.12+
 - API key for at least one provider:
   - **OpenAI**: `OPENAI_API_KEY` (for GPT-5.4 Computer Use)
+  - **Azure OpenAI**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, and `AZURE_OPENAI_DEPLOYMENT=computer-use-preview`
   - **Anthropic**: `ANTHROPIC_API_KEY` (for Claude Computer Use)
 
 Linux system dependencies (if applicable):
@@ -231,7 +233,8 @@ os-ai-backend
 ```
 
 Backend environment variables (optional):
-- `LLM_PROVIDER` - default AI provider: `openai` or `anthropic` (default: `anthropic`)
+- `LLM_PROVIDER` - default AI provider: `openai`, `azure_openai`, or `anthropic` (default: `anthropic`)
+- `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION` - Azure OpenAI settings when `LLM_PROVIDER=azure_openai`
 - `OS_AI_BACKEND_HOST` - host address (default: `127.0.0.1`)
 - `OS_AI_BACKEND_PORT` - port number (default: `8765`)
 - `OS_AI_BACKEND_DEBUG` - enable debug logging (default: `0`)
