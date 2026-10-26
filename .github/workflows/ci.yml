@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main, master ]
 
+# Supersede ordinary CI per event and PR/ref; manual runs stay independent.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.event_name == 'push' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
 jobs:
   test-macos:
     runs-on: macos-latest
